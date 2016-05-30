@@ -34,7 +34,7 @@ class RegularLanguageMachine(MultiDiGraph):
         """
         Iterator on matches of string starting at the given index and node.
         """
-        if node == 'exit':
+        if node == 'exit' and index == len(string):
             yield ()
         for new_node, edgedict in self[node].items():
             for edge in edgedict.values():
