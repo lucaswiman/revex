@@ -24,21 +24,22 @@ def test_reverse_matching_finite():
     assert len(list(machine.reverse_match_iter())) == 1
     machine.add_literals(['d', 'e', 'f'])
     assert len(list(machine.reverse_match_iter())) == 2
-    machine._draw()
     assert set(machine.reverse_string_iter()) == {'abc', 'def'}
 
 
 def test_reverse_star():
-    # Test that a hand-constructed machine corresponding to /(ab)*/ works as
+    # Test that a hand-constructed machine corresponding to (ab)* works as
     # expected.
     machine = RegularLanguageMachine()
     machine.add_edge('enter', '*', matcher=Epsilon)
     machine.add_edge('*', 0, matcher=LiteralMatcher('a'))
     machine.add_edge(0, '*', matcher=LiteralMatcher('b'))
     machine.add_edge('*', 'exit', matcher=Epsilon)
+    assert set(islice(machine.reverse_string_iter(), 0, 4)) == \
+           {'', 'ab', 'abab', 'ababab'}
+    # Now add edges to make the regex equivalent to (ab|cd)*
+    machine.add_edge('*', 1, matcher=LiteralMatcher('c'))
+    machine.add_edge(1, '*', matcher=LiteralMatcher('d'))
     machine._draw()
-    assert set(islice(machine.reverse_string_iter(), 0, 3)) == {'',
-                                                                'ab',
-                                                                'abab',
-                                                                'ababab'}
-    import pytest; pytest.set_trace()
+    assert set(islice(machine.reverse_string_iter(), 0, 7)) == \
+           {'', 'ab', 'cd', 'abcd', 'cdab', 'abab', 'cdcd'}

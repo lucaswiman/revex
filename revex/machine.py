@@ -9,33 +9,6 @@ from networkx import MultiDiGraph
 import six
 
 
-# TODO: interleave below is not guaranteed to explore the entire state space.
-def interleave(iterators):
-    """
-    Iterleave the (possibly infinite) iterator of iterators.
-
-    It will eventually reach every element of each iterator using a diagonal
-    enumeration strategy.
-    """
-    iterators = (iter(it) for it in iterators)
-    try:
-        queue = collections.deque([next(iterators)])
-    except StopIteration:
-        return
-    while queue:
-        it = queue.pop()
-        try:
-            yield next(it)
-        except StopIteration:
-            pass
-        else:
-            queue.appendleft(it)
-        try:
-            queue.appendleft(next(iterators))
-        except StopIteration:
-            pass
-
-
 class Path(object):
 
     def __init__(self, parent, node, matcher):
@@ -132,25 +105,26 @@ class RegularLanguageMachine(MultiDiGraph):
             return match_path
         return None
 
-    def reverse_match_iter(self, path=None):
+    def reverse_match_iter(self):
         """
         Returns a (possibly infinite) generator of paths which lead to "exit",
         and have an initial segment of path.
         """
-        if path == None:
-            path = Path(None, 'enter', None)
-        if path.node == 'exit':
-            yield path
-        else:
-            iterators = (
-                self.reverse_match_iter(
-                    Path(parent=path,
-                         node=next_node,
-                         matcher=edgedict['matcher']))
-                for cur_node, next_node, edgedict in
-                self.out_edges_iter([path.node], data=True))
-            for rev_path in interleave(iterators):
-                yield rev_path
+        paths = [Path(None, 'enter', None)]
+        while paths:
+            new_paths = []
+            for path in paths:
+                node = path.node
+                for _, next_node, edgedict in self.out_edges_iter([node],
+                                                                  data=True):
+                    new_path = Path(parent=path,
+                                    node=next_node,
+                                    matcher=edgedict['matcher'])
+                    if new_path.node == 'exit':
+                        yield new_path
+                    else:
+                        new_paths.append(new_path)
+            paths = new_paths
 
     def reverse_string_iter(self):
         for path in self.reverse_match_iter():
