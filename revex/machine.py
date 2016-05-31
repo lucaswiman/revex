@@ -193,13 +193,73 @@ class LiteralMatcher(object):
         return 'LiteralMatcher(%r)' % self.literal
 
     def __str__(self):
-        return '[%s]' % self.literal
+        return '%s' % self.literal
 
     def matching_string_iter(self):
         """
         Iterator of matching strings for this node.
         """
         yield self.literal
+
+
+@six.python_2_unicode_compatible
+class MultiCharMatcher(object):
+    def __init__(self, chars):
+        self.chars = frozenset(chars)
+
+    def __call__(self, string, index):
+        if string[index] in self.chars:
+            return MatchInfo(
+                matcher=self,
+                consumed_chars=1,
+                string=string,
+                index=index,
+            )
+        else:
+            return None
+
+    def __repr__(self):
+        return 'MultiCharMatcher(%r)' % ''.join(self.chars)
+
+    def __str__(self):
+        s = ','.join(self.chars)
+        if len(self.chars) == 1:
+            s = '[%s]' % s
+        return s
+
+    def matching_string_iter(self):
+        return iter(self.chars)
+
+
+@six.python_2_unicode_compatible
+class CharRangeMatcher(object):
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+        if self.start > self.end:
+            raise ValueError('Invalid character range %s' % self)
+
+    def __call__(self, string, index):
+        if self.start <= string[index] <= self.end:
+            return MatchInfo(
+                matcher=self,
+                consumed_chars=1,
+                string=string,
+                index=index,
+            )
+        else:
+            return None
+
+    def __repr__(self):
+        return 'CharRangeMatcher(%r, %r)' % (self.start, self.end)
+
+    def __str__(self):
+        return '[%s-%s]' % (self.start, self.end)
+
+    def matching_string_iter(self):
+        return (
+            six.unichr(i) for i in range(ord(self.start), ord(self.end) + 1))
+
 
 
 @six.python_2_unicode_compatible
@@ -236,8 +296,8 @@ REGEX = Grammar(r'''
     plus = literal "+"
     literal = group / any / chars / positive_set / negative_set
     group = "(" sub_re ")"
-    any = "."
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|]"
+    any = "."
     chars = char+
     char = escaped_metachar / non_metachar
     non_metachar = ~"[^.$^\\*+\[\]()|]"
@@ -245,7 +305,7 @@ REGEX = Grammar(r'''
     negative_set = "[^" set_items "]"
     set_char = ~"[^\\]]|\\]"
     set_items = "-"? (range / ~"[^\\]]")+
-    range = char "-" set_char
+    range = set_char "-" set_char
 ''')
 
 class RegexVisitor(NodeVisitor):
@@ -275,6 +335,13 @@ class RegexVisitor(NodeVisitor):
         lparen, [(enter, exit)], rparen = children
         return (enter, exit)
 
+    def add_disjunction(self, node_pairs):
+        enter, exit = self.machine.node_factory(), self.machine.node_factory()
+        for disjunct_enter, disjunct_exit in node_pairs:
+            self.machine.add_edge(enter, disjunct_enter, matcher=Epsilon)
+            self.machine.add_edge(disjunct_exit, exit, matcher=Epsilon)
+        return (enter, exit)
+
     def visit_union(self, node, children):
         node_pairs = []
         # This is sort of ugly; parsimonious returns children as a list
@@ -284,12 +351,7 @@ class RegexVisitor(NodeVisitor):
         for (node_pair, superfluous_pipe) in disjuncts:
             node_pairs.append(node_pair)
         node_pairs.append(rightmost_pair)
-
-        enter, exit = self.machine.node_factory(), self.machine.node_factory()
-        for disjunct_enter, disjunct_exit in node_pairs:
-            self.machine.add_edge(enter, disjunct_enter, matcher=Epsilon)
-            self.machine.add_edge(disjunct_exit, exit, matcher=Epsilon)
-        return (enter, exit)
+        return self.add_disjunction(node_pairs)
 
     def visit_star(self, node, children):
         (enter, exit), star = children
@@ -324,6 +386,38 @@ class RegexVisitor(NodeVisitor):
     def visit_char(self, node, children):
         child, = children
         return child
+
+    def visit_range(self, node, children):
+        # Since a range may be inverted or not, we need to add nodes to the
+        # machine for it up the stack.
+        start, dash, end = children
+        if len(start) == 2:
+            assert start[0] == '\\', 'Bug! %s' % start
+            start = start[1]
+        if len(end) == 2:
+            assert end[0] == '\\', 'Bug! %s' % end
+            end = end[1]
+        return CharRangeMatcher(start, end)
+
+    def visit_set_items(self, node, children):
+        [maybe_dash, itemsets] = children
+        if maybe_dash[0]:
+            itemsets.append(maybe_dash)
+        return [item for item, in itemsets]
+
+    def visit_positive_set(self, node, children):
+        [lbrac, items, rbrac] = children
+        raw_chars = ''.join(s for s in items if not isinstance(s, CharRangeMatcher))
+        node_pairs = []
+        if raw_chars:
+            enter, exit = self.machine.node_factory(), self.machine.node_factory()
+            self.machine.add_edge(enter, exit, matcher=MultiCharMatcher(raw_chars))
+            node_pairs.append((enter, exit))
+        for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
+            enter, exit = self.machine.node_factory(), self.machine.node_factory()
+            self.machine.add_edge(enter, exit, matcher=range_matcher)
+            node_pairs.append((enter, exit))
+        return self.add_disjunction(node_pairs)
 
     def generic_visit(self, node, children):
         return children or node.text

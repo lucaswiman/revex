@@ -37,3 +37,15 @@ def test_group():
     assert machine.match('ab')
     assert machine.match('abab')
     assert not machine.match('aba')
+
+
+def test_char_range():
+    machine = RegularLanguageMachine('[-a-z1-9]')
+    machine._draw()
+    assert machine.match('a')
+    assert machine.match('b')
+    assert machine.match('z')
+    assert machine.match('5')
+    assert machine.match('-')
+    assert not machine.match(',')
+    assert not machine.match('0')
