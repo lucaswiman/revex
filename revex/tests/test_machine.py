@@ -40,6 +40,5 @@ def test_reverse_star():
     # Now add edges to make the regex equivalent to (ab|cd)*
     machine.add_edge('*', 1, matcher=LiteralMatcher('c'))
     machine.add_edge(1, '*', matcher=LiteralMatcher('d'))
-    machine._draw()
     assert set(islice(machine.reverse_string_iter(), 0, 7)) == \
            {'', 'ab', 'cd', 'abcd', 'cdab', 'abab', 'cdcd'}
