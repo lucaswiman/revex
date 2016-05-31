@@ -261,7 +261,6 @@ class CharRangeMatcher(object):
             six.unichr(i) for i in range(ord(self.start), ord(self.end) + 1))
 
 
-
 @six.python_2_unicode_compatible
 class _Epsilon(LiteralMatcher):
     def __init__(self):
@@ -281,10 +280,6 @@ def string_literal(machine, in_node, literal):
     node = machine.node_factory()
     machine.add_edge(in_node, node, matcher=LiteralMatcher(literal))
     return node
-
-
-def star(node):
-    raise NotImplementedError
 
 
 REGEX = Grammar(r'''
@@ -307,6 +302,7 @@ REGEX = Grammar(r'''
     set_items = "-"? (range / ~"[^\\]]")+
     range = set_char "-" set_char
 ''')
+
 
 class RegexVisitor(NodeVisitor):
     grammar = REGEX
