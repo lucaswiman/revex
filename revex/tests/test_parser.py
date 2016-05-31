@@ -41,7 +41,6 @@ def test_group():
 
 def test_char_range():
     machine = RegularLanguageMachine('[-a-z1-9]')
-    machine._draw()
     assert machine.match('a')
     assert machine.match('b')
     assert machine.match('z')
@@ -49,3 +48,14 @@ def test_char_range():
     assert machine.match('-')
     assert not machine.match(',')
     assert not machine.match('0')
+
+
+def test_complex_regex():
+    # regex to recognize IPv4 addresses. From
+    # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # nopep8
+    ipv4 = r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+    import re
+    actual = re.compile(ipv4)
+    machine = RegularLanguageMachine(ipv4)
+    assert actual.match('127.0.0.1')
+    assert machine.match('127.0.0.1')
