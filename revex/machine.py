@@ -2,13 +2,96 @@
 
 from __future__ import unicode_literals
 
-import abc
 import collections
 import itertools
-import sys
 
 from networkx import MultiDiGraph
 import six
+
+
+# TODO: interleave below is not guaranteed to explore the entire state space.
+def interleave(iterators):
+    """
+    Iterleave the (possibly infinite) iterator of iterators.
+
+    It will eventually reach every element of each iterator using a diagonal
+    enumeration strategy.
+    """
+    iterators = (iter(it) for it in iterators)
+    try:
+        queue = collections.deque([next(iterators)])
+    except StopIteration:
+        return
+    while queue:
+        it = queue.pop()
+        try:
+            yield next(it)
+        except StopIteration:
+            pass
+        else:
+            queue.appendleft(it)
+        try:
+            queue.appendleft(next(iterators))
+        except StopIteration:
+            pass
+
+
+class Path(object):
+
+    def __init__(self, parent, node, matcher):
+        self.parent = parent
+        self.node = node
+        self.matcher = matcher
+
+    def as_list(self):
+        path_components = []
+        cur = self
+        while cur is not None:
+            path_components.append(cur)
+            cur = cur.parent
+        path_components.reverse()
+        return path_components
+
+    def __getitem__(self, *args, **kwargs):
+        # This is slow since it's O(length); still useful for debugging.
+        return self.as_list().__getitem__(*args, **kwargs)
+
+    def __repr__(self):
+        return 'Path(parent={parent}, node={node}, matcher={matcher})'.format(
+            parent=getattr(self.parent, 'node', None),
+            node=self.node,
+            matcher=self.matcher
+        )
+
+    @property
+    def matchers(self):
+        matchers = []
+        cur = self
+        while cur is not None:
+            matchers.append(self.matcher)
+            cur = cur.parent
+        matchers.reverse()
+        return matchers
+
+    @property
+    def nodes(self):
+        cur = self
+        nodes = []
+        while cur is not None:
+            nodes.append(cur.node)
+            cur = cur.parent
+        nodes.reverse()
+        return nodes
+
+    def matching_string_iter(self):
+        iterators = []
+        cur = self
+        while cur.parent is not None:
+            iterators.append(cur.matcher.matching_string_iter())
+            cur = cur.parent
+        iterators.reverse()
+        for substrings in itertools.product(*iterators):
+            yield ''.join(substrings)
 
 
 class RegularLanguageMachine(MultiDiGraph):
@@ -36,24 +119,48 @@ class RegularLanguageMachine(MultiDiGraph):
         """
         if node == 'exit' and index == len(string):
             yield ()
-        for new_node, edgedict in self[node].items():
-            for edge in edgedict.values():
-                matcher = edge['matcher']
-                match_info = matcher(string, index)
-                if match_info:
-                    new_index = index + match_info.consumed_chars
-                    for path in self.match_iter(string, new_index, new_node):
-                        yield (match_info, ) + path
+        for _, next_node, edgedict in self.out_edges([node], data=True):
+            matcher = edgedict['matcher']
+            match_info = matcher(string, index)
+            if match_info:
+                new_index = index + match_info.consumed_chars
+                for path in self.match_iter(string, new_index, next_node):
+                    yield (match_info, ) + path
 
     def match(self, string, index=0, node='enter'):
         for match_path in self.match_iter(string, index, node):
             return match_path
         return None
 
+    def reverse_match_iter(self, path=None):
+        """
+        Returns a (possibly infinite) generator of paths which lead to "exit",
+        and have an initial segment of path.
+        """
+        if path == None:
+            path = Path(None, 'enter', None)
+        if path.node == 'exit':
+            yield path
+        else:
+            iterators = (
+                self.reverse_match_iter(
+                    Path(parent=path,
+                         node=next_node,
+                         matcher=edgedict['matcher']))
+                for cur_node, next_node, edgedict in
+                self.out_edges_iter([path.node], data=True))
+            for rev_path in interleave(iterators):
+                yield rev_path
+
+    def reverse_string_iter(self):
+        for path in self.reverse_match_iter():
+            for string in path.matching_string_iter():
+                yield string
+
     def add_literals(self, literals, node='enter'):
         for literal in literals:
             node = string_literal(self, node, literal)
-        self.add_edge(node, 'exit', matcher=EpsilonMatcher())
+        self.add_edge(node, 'exit', matcher=Epsilon)
 
     def _draw(self):
         """
@@ -74,9 +181,12 @@ MatchInfo = collections.namedtuple(
 )
 
 
-class Matcher(object):
+@six.python_2_unicode_compatible
+class LiteralMatcher(object):
+    def __init__(self, literal):
+        self.literal = literal
 
-    def __call(self, str, index):
+    def __call__(self, string, index):
         """
         Match the string at the given index.
 
@@ -86,39 +196,6 @@ class Matcher(object):
         many characters are consumed; otherwise None.
         """
 
-    def reverse_match_iter(self):
-        """
-        :return: iterator on strings that would match this node.
-        """
-
-
-@six.python_2_unicode_compatible
-class EpsilonMatcher(Matcher):
-    def __call__(self, string, index):
-        return MatchInfo(
-            matcher=self,
-            consumed_chars=0,
-            string=string,
-            index=index
-        )
-
-    def __repr__(self):
-        return 'EpsilonMatcher()'
-
-    def __str__(self):
-        return 'ε'
-
-    def reverse_match_iter(self):
-        yield ''
-
-
-
-@six.python_2_unicode_compatible
-class LiteralMatcher(Matcher):
-    def __init__(self, literal):
-        self.literal = literal
-
-    def __call__(self, string, index):
         # This is technically not maximally efficient, since it introduces
         # quadratic time, but in practice is probably faster than checking
         # character-by-character except for very long strings.
@@ -138,9 +215,26 @@ class LiteralMatcher(Matcher):
     def __str__(self):
         return '[%s]' % self.literal
 
-    def reverse_match_iter(self):
-        # This will only match the given literal, so just yield that.
+    def matching_string_iter(self):
+        """
+        Iterator of matching strings for this node.
+        """
         yield self.literal
+
+
+@six.python_2_unicode_compatible
+class _Epsilon(LiteralMatcher):
+    def __init__(self):
+        return super(_Epsilon, self).__init__('')
+
+    def __repr__(self):
+        return 'Epsilon()'
+
+    def __str__(self):
+        return 'ε'
+
+
+Epsilon = _Epsilon()
 
 
 def string_literal(machine, in_node, literal):

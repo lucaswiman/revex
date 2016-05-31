@@ -2,4 +2,3 @@ networkx
 -e git+git://github.com/lucaswiman/parsimonious.git@py3kcompatibility#egg=parsimonious
 six
 pygraphviz
-matplotlib
