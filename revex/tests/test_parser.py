@@ -22,3 +22,18 @@ def test_plus():
     assert machine.match('a')
     assert machine.match('aa')
     assert not machine.match('b')
+
+
+def test_union():
+    machine = RegularLanguageMachine('a|b|c')
+    assert machine.match('a')
+    assert machine.match('b')
+    assert machine.match('c')
+    assert not machine.match('abc')
+
+
+def test_group():
+    machine = RegularLanguageMachine('(ab)+')
+    assert machine.match('ab')
+    assert machine.match('abab')
+    assert not machine.match('aba')

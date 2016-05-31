@@ -237,10 +237,10 @@ REGEX = Grammar(r'''
     literal = group / any / chars / positive_set / negative_set
     group = "(" sub_re ")"
     any = "."
-    escaped_metachar = "\\" ~"[.$^\\*+\[\]()]"
+    escaped_metachar = "\\" ~"[.$^\\*+\[\]()|]"
     chars = char+
     char = escaped_metachar / non_metachar
-    non_metachar = ~"[^.$^\\*+\[\]()]"
+    non_metachar = ~"[^.$^\\*+\[\]()|]"
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
     set_char = ~"[^\\]]|\\]"
@@ -269,6 +269,26 @@ class RegexVisitor(NodeVisitor):
             self.machine.add_edge(exit1, enter2, matcher=Epsilon)
         enter = node_pairs[0][0]
         exit = node_pairs[-1][1]
+        return (enter, exit)
+
+    def visit_group(self, node, children):
+        lparen, [(enter, exit)], rparen = children
+        return (enter, exit)
+
+    def visit_union(self, node, children):
+        node_pairs = []
+        # This is sort of ugly; parsimonious returns children as a list
+        # of all its left disjuncts (including the | character) and the final one
+        # (sans pipe character).
+        disjuncts, rightmost_pair = children
+        for (node_pair, superfluous_pipe) in disjuncts:
+            node_pairs.append(node_pair)
+        node_pairs.append(rightmost_pair)
+
+        enter, exit = self.machine.node_factory(), self.machine.node_factory()
+        for disjunct_enter, disjunct_exit in node_pairs:
+            self.machine.add_edge(enter, disjunct_enter, matcher=Epsilon)
+            self.machine.add_edge(disjunct_exit, exit, matcher=Epsilon)
         return (enter, exit)
 
     def visit_star(self, node, children):
