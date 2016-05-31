@@ -137,11 +137,6 @@ class RegularLanguageMachine(MultiDiGraph):
             for string in path.matching_string_iter():
                 yield string
 
-    def add_literals(self, literals, node=ENTER):
-        for literal in literals:
-            node = string_literal(self, node, literal)
-        self.add_edge(node, EXIT, matcher=Epsilon)
-
     def _draw(self):
         """
         Hack to draw the graph and open it in preview. Sorta OS X only-ish.
@@ -274,12 +269,6 @@ class _Epsilon(LiteralMatcher):
 
 
 Epsilon = _Epsilon()
-
-
-def string_literal(machine, in_node, literal):
-    node = machine.node_factory()
-    machine.add_edge(in_node, node, matcher=LiteralMatcher(literal))
-    return node
 
 
 REGEX = Grammar(r'''

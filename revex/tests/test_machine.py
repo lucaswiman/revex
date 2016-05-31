@@ -1,28 +1,36 @@
 from itertools import islice
 
-from revex.machine import RegularLanguageMachine, Epsilon, LiteralMatcher
+from revex.machine import RegularLanguageMachine, Epsilon, LiteralMatcher, ENTER, EXIT
+
+
+def add_literals(machine, literals, node=ENTER):
+    for literal in literals:
+        in_node = node
+        node = machine.node_factory()
+        machine.add_edge(in_node, node, matcher=LiteralMatcher(literal))
+    machine.add_edge(node, EXIT, matcher=Epsilon)
 
 
 def test_literal_matches():
     machine = RegularLanguageMachine()
-    machine.add_literals(['abc', ' ', 'do', ' ', 're', ' ', 'me'])
+    add_literals(machine, ['abc', ' ', 'do', ' ', 're', ' ', 'me'])
     assert machine.match('abc do re me')
     assert not machine.match('abc do re you')
     assert len(list(machine.match_iter('abc do re me'))) == 1
-    machine.add_literals(['abc do re me'])
+    add_literals(machine, ['abc do re me'])
     assert len(list(machine.match_iter('abc do re me'))) == 2
-    machine.add_literals(['abc do ', 're me'])
+    add_literals(machine, ['abc do ', 're me'])
     assert len(list(machine.match_iter('abc do re me'))) == 3
-    machine.add_literals(['abc do'])
+    add_literals(machine, ['abc do'])
     assert len(list(machine.match_iter('abc do'))) == 1
     assert len(list(machine.match_iter('abc do re me'))) == 3
 
 
 def test_reverse_matching_finite():
     machine = RegularLanguageMachine()
-    machine.add_literals(['a', 'b', 'c'])
+    add_literals(machine, ['a', 'b', 'c'])
     assert len(list(machine.reverse_match_iter())) == 1
-    machine.add_literals(['d', 'e', 'f'])
+    add_literals(machine, ['d', 'e', 'f'])
     assert len(list(machine.reverse_match_iter())) == 2
     assert set(machine.reverse_string_iter()) == {'abc', 'def'}
 
