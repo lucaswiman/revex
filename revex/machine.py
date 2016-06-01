@@ -68,24 +68,51 @@ class Path(object):
             yield ''.join(substrings)
 
 
+_node_factory = itertools.count()
+
 class RegularLanguageMachine(MultiDiGraph):
-    def __init__(self, regex=None):
+    def __init__(self, regex=None, node_factory=_node_factory, enter=None, exit=None):
         super(RegularLanguageMachine, self).__init__()
-        self._node_factory = itertools.count()
-        self.enter = self.node_factory()
-        self.exit = self.node_factory()
+        self._node_factory = node_factory
         self.regex = regex
+        if self.regex is not None:
+            machine = RegexVisitor().parse(self.regex)
+            self.enter = machine.enter
+            self.exit = machine.exit
+            self.add_edges_from(machine.edges(data=True, keys=True))
+        else:
+            self.enter = self.node_factory() if enter is None else enter
+            self.exit = self.node_factory() if exit is None else exit
         self.add_node(self.enter)
         self.add_node(self.exit)
-        if self.regex is not None:
-            RegexVisitor(self).parse(self.regex)
 
-    def add_edge(self, u, v, matcher=None):
-        if not matcher:
+    def add_edge(self, u, v, key=None, attr_dict=None, **kwargs):
+        # Note that the order of key and attr_dict are important, since networkx
+        # uses them as positional arguments in add_edges_from().
+        attr_dict = attr_dict or {}
+        attr_dict.update(kwargs)
+        matcher = attr_dict.get('matcher')
+        if not attr_dict.get('matcher'):
             raise ValueError('Matcher required!')
-
+        attr_dict['label'] = str(matcher)
         return super(RegularLanguageMachine, self).add_edge(
-            u, v, matcher=matcher, label=str(matcher))
+            u, v,
+            key=key,
+            attr_dict=attr_dict)
+
+    def __lshift__(self, other):
+        """
+        Returns a new version of self and other consisting of the union of
+        the edges / nodes and the entrance & nodes of self.
+        """
+        machine = RegularLanguageMachine(
+            node_factory=self._node_factory,
+            enter=self.enter,
+            exit=self.exit,
+        )
+        machine.add_edges_from(self.edges(data=True, keys=True))
+        machine.add_edges_from(other.edges(data=True, keys=True))
+        return machine
 
     def node_factory(self):
         return next(self._node_factory)
@@ -296,62 +323,69 @@ REGEX = Grammar(r'''
 class RegexVisitor(NodeVisitor):
     grammar = REGEX
 
-    def __init__(self, machine):
-        self.machine = machine
+    def __init__(self):
+        self.node_factory = itertools.count()
 
     def visit_re(self, node, children):
         # Hook up the root to the enter / exit nodes of the machine.
-        [[enter, exit]] = children
-        self.machine.add_edge(self.machine.enter, enter, Epsilon)
-        self.machine.add_edge(exit, self.machine.exit, Epsilon)
-        return (self.machine.enter, self.machine.exit)
+        [machine] = children
+        return machine
 
     def visit_concatenation(self, node, children):
         # ``children`` is a list of (enter, exit) nodes which need to be hooked
         # together (concatenated).
-        node_pairs = [node_pair for [node_pair] in children]
-        for (enter1, exit1), (enter2, exit2) in zip(node_pairs, node_pairs[1:]):
-            self.machine.add_edge(exit1, enter2, matcher=Epsilon)
-        enter = node_pairs[0][0]
-        exit = node_pairs[-1][1]
-        return (enter, exit)
+        sub_machines = [machine for [machine] in children]
+        machine = RegularLanguageMachine(node_factory=self.node_factory)
+        last = machine.enter
+        for sub_machine in sub_machines:
+            machine = machine << sub_machine
+            machine.add_edge(last, sub_machine.enter, matcher=Epsilon)
+            last = sub_machine.exit
+        machine.add_edge(last, machine.exit, matcher=Epsilon)
+        return machine
 
     def visit_group(self, node, children):
-        lparen, [(enter, exit)], rparen = children
-        return (enter, exit)
+        lparen, [machine], rparen = children
+        return machine
 
-    def add_disjunction(self, node_pairs):
-        enter, exit = self.machine.node_factory(), self.machine.node_factory()
-        for disjunct_enter, disjunct_exit in node_pairs:
-            self.machine.add_edge(enter, disjunct_enter, matcher=Epsilon)
-            self.machine.add_edge(disjunct_exit, exit, matcher=Epsilon)
-        return (enter, exit)
+    def add_disjunction(self, disjuncts):
+        machine = RegularLanguageMachine(node_factory=self.node_factory)
+        for disjunct in disjuncts:
+            machine = machine << disjunct
+            machine.add_edge(machine.enter, disjunct.enter, matcher=Epsilon)
+            machine.add_edge(disjunct.exit, machine.exit, matcher=Epsilon)
+        return machine
 
     def visit_union(self, node, children):
-        node_pairs = []
+        disjuncts = []
         # This is sort of ugly; parsimonious returns children as a list
         # of all its left disjuncts (including the | character) and the final one
         # (sans pipe character).
-        disjuncts, rightmost_pair = children
-        for (node_pair, superfluous_pipe) in disjuncts:
-            node_pairs.append(node_pair)
-        node_pairs.append(rightmost_pair)
-        return self.add_disjunction(node_pairs)
+        disjuncts_and_pipes, last_disjunct = children
+        for (disjunct, superfluous_pipe) in disjuncts_and_pipes:
+            disjuncts.append(disjunct)
+        disjuncts.append(last_disjunct)
+        return self.add_disjunction(disjuncts)
 
     def visit_star(self, node, children):
-        (enter, exit), star = children
-        node = self.machine.node_factory()
-        self.machine.add_edge(node, enter, matcher=Epsilon)
-        self.machine.add_edge(exit, node, matcher=Epsilon)
-        return (node, node)
+        machine, star_char = children
+        star = RegularLanguageMachine(node_factory=self.node_factory) << machine
+        star_node = star.node_factory()
+        star.add_edge(star.enter, star_node, matcher=Epsilon)
+        star.add_edge(star_node, star.exit, matcher=Epsilon)
+        star.add_edge(star_node, machine.enter, matcher=Epsilon)
+        star.add_edge(machine.exit, star_node, matcher=Epsilon)
+        return star
 
     def visit_plus(self, node, children):
-        (enter, exit), plus = children
-        # Add the looping behavior as in *.
-        self.visit_star(node, ((enter, exit), '*'))
-        # But keep the entry node the same to guarantee at least one traversal
-        # through.
-        return (enter, exit)
+        machine, plus_char = children
+        plus = RegularLanguageMachine(node_factory=self.node_factory) << machine
+        plus_node = plus.node_factory()
+        plus.add_edge(plus.enter, machine.enter, matcher=Epsilon)
+        plus.add_edge(machine.exit, plus_node, matcher=Epsilon)
+        plus.add_edge(plus_node, machine.enter, matcher=Epsilon)
+        plus.add_edge(plus_node, plus.exit, matcher=Epsilon)
+        return plus
 
     def visit_literal(self, node, children):
         # Why doesn't parsimonious do this for you?
@@ -359,10 +393,10 @@ class RegexVisitor(NodeVisitor):
         return child
 
     def visit_chars(self, node, children):
-        node1, node2 = self.machine.node_factory(), self.machine.node_factory()
         text = ''.join(children)
-        self.machine.add_edge(node1, node2, matcher=LiteralMatcher(text))
-        return (node1, node2)
+        machine = RegularLanguageMachine(node_factory=self.node_factory)
+        machine.add_edge(machine.enter, machine.exit, matcher=LiteralMatcher(text))
+        return machine
 
     def visit_escaped_metachar(self, node, children):
         slash, char = children
@@ -393,16 +427,17 @@ class RegexVisitor(NodeVisitor):
     def visit_positive_set(self, node, children):
         [lbrac, items, rbrac] = children
         raw_chars = ''.join(s for s in items if not isinstance(s, CharRangeMatcher))
-        node_pairs = []
+        machines = []
         if raw_chars:
-            enter, exit = self.machine.node_factory(), self.machine.node_factory()
-            self.machine.add_edge(enter, exit, matcher=MultiCharMatcher(raw_chars))
-            node_pairs.append((enter, exit))
+            machine = RegularLanguageMachine(node_factory=self.node_factory)
+            machine.add_edge(machine.enter, machine.exit,
+                             matcher=MultiCharMatcher(raw_chars))
+            machines.append(machine)
         for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
-            enter, exit = self.machine.node_factory(), self.machine.node_factory()
-            self.machine.add_edge(enter, exit, matcher=range_matcher)
-            node_pairs.append((enter, exit))
-        return self.add_disjunction(node_pairs)
+            machine = RegularLanguageMachine(node_factory=self.node_factory)
+            machine.add_edge(machine.enter, machine.exit, matcher=range_matcher)
+            machines.append(machine)
+        return self.add_disjunction(machines)
 
     def generic_visit(self, node, children):
         return children or node.text
