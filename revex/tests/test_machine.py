@@ -1,14 +1,15 @@
 from itertools import islice
 
-from revex.machine import RegularLanguageMachine, Epsilon, LiteralMatcher, ENTER, EXIT
+from revex.machine import RegularLanguageMachine, Epsilon, LiteralMatcher
 
 
-def add_literals(machine, literals, node=ENTER):
+def add_literals(machine, literals):
+    node = machine.enter
     for literal in literals:
         in_node = node
         node = machine.node_factory()
         machine.add_edge(in_node, node, matcher=LiteralMatcher(literal))
-    machine.add_edge(node, EXIT, matcher=Epsilon)
+    machine.add_edge(node, machine.exit, matcher=Epsilon)
 
 
 def test_literal_matches():
@@ -39,14 +40,17 @@ def test_reverse_star():
     # Test that a hand-constructed machine corresponding to (ab)* works as
     # expected.
     machine = RegularLanguageMachine()
-    machine.add_edge('enter', '*', matcher=Epsilon)
-    machine.add_edge('*', 0, matcher=LiteralMatcher('a'))
-    machine.add_edge(0, '*', matcher=LiteralMatcher('b'))
-    machine.add_edge('*', 'exit', matcher=Epsilon)
+    machine.add_edge(machine.enter, '*', matcher=Epsilon)
+    node = machine.node_factory()
+    machine.add_edge('*', node, matcher=LiteralMatcher('a'))
+    machine.add_edge(node, '*', matcher=LiteralMatcher('b'))
+    machine.add_edge('*', machine.exit, matcher=Epsilon)
+    machine._draw()
     assert set(islice(machine.reverse_string_iter(), 0, 4)) == \
            {'', 'ab', 'abab', 'ababab'}
     # Now add edges to make the regex equivalent to (ab|cd)*
-    machine.add_edge('*', 1, matcher=LiteralMatcher('c'))
-    machine.add_edge(1, '*', matcher=LiteralMatcher('d'))
+    node = machine.node_factory()
+    machine.add_edge('*', node, matcher=LiteralMatcher('c'))
+    machine.add_edge(node, '*', matcher=LiteralMatcher('d'))
     assert set(islice(machine.reverse_string_iter(), 0, 7)) == \
            {'', 'ab', 'cd', 'abcd', 'cdab', 'abab', 'cdcd'}

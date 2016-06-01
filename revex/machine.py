@@ -10,10 +10,6 @@ from parsimonious import Grammar, NodeVisitor
 import six
 
 
-ENTER = 'enter'
-EXIT = 'exit'
-
-
 class Path(object):
 
     def __init__(self, parent, node, matcher):
@@ -75,10 +71,12 @@ class Path(object):
 class RegularLanguageMachine(MultiDiGraph):
     def __init__(self, regex=None):
         super(RegularLanguageMachine, self).__init__()
-        self.regex = regex
-        self.add_node(ENTER)
-        self.add_node(EXIT)
         self._node_factory = itertools.count()
+        self.enter = self.node_factory()
+        self.exit = self.node_factory()
+        self.regex = regex
+        self.add_node(self.enter)
+        self.add_node(self.exit)
         if self.regex is not None:
             RegexVisitor(self).parse(self.regex)
 
@@ -92,11 +90,12 @@ class RegularLanguageMachine(MultiDiGraph):
     def node_factory(self):
         return next(self._node_factory)
 
-    def match_iter(self, string, index=0, node=ENTER):
+    def match_iter(self, string, index=0, node=None):
         """
         Iterator on matches of string starting at the given index and node.
         """
-        if node == EXIT and index == len(string):
+        node = self.enter if node is None else node
+        if node == self.exit and index == len(string):
             yield ()
         for _, next_node, edgedict in self.out_edges([node], data=True):
             matcher = edgedict['matcher']
@@ -106,7 +105,8 @@ class RegularLanguageMachine(MultiDiGraph):
                 for path in self.match_iter(string, new_index, next_node):
                     yield (match_info, ) + path
 
-    def match(self, string, index=0, node=ENTER):
+    def match(self, string, index=0, node=None):
+        node = self.enter if node is None else node
         for match_path in self.match_iter(string, index, node):
             return match_path
         return None
@@ -116,7 +116,7 @@ class RegularLanguageMachine(MultiDiGraph):
         Returns a (possibly infinite) generator of paths which lead to "exit",
         and have an initial segment of path.
         """
-        paths = [Path(None, ENTER, None)]
+        paths = [Path(None, self.enter, None)]
         while paths:
             new_paths = []
             for path in paths:
@@ -126,7 +126,7 @@ class RegularLanguageMachine(MultiDiGraph):
                     new_path = Path(parent=path,
                                     node=next_node,
                                     matcher=edgedict['matcher'])
-                    if new_path.node == EXIT:
+                    if new_path.node == self.exit:
                         yield new_path
                     else:
                         new_paths.append(new_path)
@@ -302,9 +302,9 @@ class RegexVisitor(NodeVisitor):
     def visit_re(self, node, children):
         # Hook up the root to the enter / exit nodes of the machine.
         [[enter, exit]] = children
-        self.machine.add_edge(ENTER, enter, Epsilon)
-        self.machine.add_edge(exit, EXIT, Epsilon)
-        return (ENTER, EXIT)
+        self.machine.add_edge(self.machine.enter, enter, Epsilon)
+        self.machine.add_edge(exit, self.machine.exit, Epsilon)
+        return (self.machine.enter, self.machine.exit)
 
     def visit_concatenation(self, node, children):
         # ``children`` is a list of (enter, exit) nodes which need to be hooked
