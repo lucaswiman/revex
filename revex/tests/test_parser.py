@@ -59,3 +59,12 @@ def test_complex_regex():
     machine = RegularLanguageMachine(ipv4)
     assert actual.match('127.0.0.1')
     assert machine.match('127.0.0.1')
+
+
+def test_that_various_regexes_should_parse():
+    m1 = RegularLanguageMachine('a+(bc)*')
+    assert m1.match('aaa')
+    assert m1.match('abcbc')
+    m2 = RegularLanguageMachine('a+(bc)*[0-9]')
+    assert m2.match('abc0')
+    assert not m2.match('abcc0')

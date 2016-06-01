@@ -309,7 +309,7 @@ class RegexVisitor(NodeVisitor):
     def visit_concatenation(self, node, children):
         # ``children`` is a list of (enter, exit) nodes which need to be hooked
         # together (concatenated).
-        [node_pairs] = children
+        node_pairs = [node_pair for [node_pair] in children]
         for (enter1, exit1), (enter2, exit2) in zip(node_pairs, node_pairs[1:]):
             self.machine.add_edge(exit1, enter2, matcher=Epsilon)
         enter = node_pairs[0][0]
@@ -386,7 +386,7 @@ class RegexVisitor(NodeVisitor):
 
     def visit_set_items(self, node, children):
         [maybe_dash, itemsets] = children
-        if maybe_dash[0]:
+        if maybe_dash:
             itemsets.append(maybe_dash)
         return [item for item, in itemsets]
 
