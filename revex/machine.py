@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import collections
 import itertools
 import operator
+import random
 
 from functools import reduce
 from uuid import uuid1
@@ -14,7 +15,7 @@ from parsimonious import Grammar, NodeVisitor
 import six
 
 
-class Path(object):
+class Walk(object):
 
     def __init__(self, parent, node, matcher):
         self.parent = parent
@@ -35,7 +36,7 @@ class Path(object):
         return self.as_list().__getitem__(*args, **kwargs)
 
     def __repr__(self):
-        return 'Path(parent={parent}, node={node}, matcher={matcher})'.format(
+        return 'Walk(parent={parent}, node={node}, matcher={matcher})'.format(
             parent=getattr(self.parent, 'node', None),
             node=self.node,
             matcher=self.matcher
@@ -201,14 +202,14 @@ class RegularLanguageMachine(MultiDiGraph):
         Returns a (possibly infinite) generator of paths which lead to "exit",
         and have an initial segment of path.
         """
-        paths = [Path(None, self.enter, None)]
+        paths = [Walk(None, self.enter, None)]
         while paths:
             new_paths = []
             for path in paths:
                 node = path.node
                 for _, next_node, edgedict in self.out_edges_iter([node],
                                                                   data=True):
-                    new_path = Path(parent=path,
+                    new_path = Walk(parent=path,
                                     node=next_node,
                                     matcher=edgedict['matcher'])
                     if new_path.node == self.exit:
@@ -221,6 +222,35 @@ class RegularLanguageMachine(MultiDiGraph):
         for path in self.reverse_match_iter():
             for string in path.matching_string_iter():
                 yield string
+
+    def random_walk(self, max_iter=10000):
+        i = 0
+        walk = Walk(None, self.enter, None)
+        while i < max_iter:
+            i += 1
+            _, next_node, edgedict = random.choice(
+                self.out_edges([walk.node], data=True))
+            walk = Walk(parent=walk,
+                        node=next_node,
+                        matcher=edgedict['matcher'])
+            if walk.node == self.exit:
+                return walk
+        raise ValueError(
+            'Did not find a path out of %r after %r iterations' % (
+                self, max_iter))
+
+    def reverse_random_string(self, max_iter=10000):
+        """
+        Performs a random walk of the machine, until an exit node is reached,
+        and returns it.
+
+        This has no backtracking, so it will simply fail if the machine has
+        a dead end. It will go for max_iter iterations before raising an error
+        to avoid infinite loops.
+        """
+        # TODO: random the shit out of this.
+        walk = self.random_walk(max_iter=max_iter)
+        return next(walk.matching_string_iter())
 
     def _draw(self):
         """
