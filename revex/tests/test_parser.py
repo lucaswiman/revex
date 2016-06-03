@@ -52,6 +52,14 @@ def test_char_range():
     assert not machine.match('0')
 
 
+def test_initial_substring():
+    machine = RegularLanguageMachine('[a][b][c][d][e]')
+    assert machine.match('abcde')
+    # This terminates the search before reaching the exit node of the graph.
+    # We shouldn't match or continue trying to traverse the string.
+    assert not machine.match('abc')
+
+
 def test_complex_regex():
     # regex to recognize IPv4 addresses. From
     # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # nopep8

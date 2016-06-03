@@ -7,6 +7,8 @@ import itertools
 import operator
 
 from functools import reduce
+from uuid import uuid1
+
 from networkx import MultiDiGraph, relabel_nodes
 from parsimonious import Grammar, NodeVisitor
 import six
@@ -97,6 +99,12 @@ class RegularLanguageMachine(MultiDiGraph):
     def add_edge(self, u, v, key=None, attr_dict=None, **kwargs):
         # Note that the order of key and attr_dict are important, since networkx
         # uses them as positional arguments in add_edges_from().
+
+        # All state machine edges should be distinct. Obnoxiously, this is not
+        # the default behavior in MultiDiGraph. See
+        # https://github.com/networkx/networkx/issues/2112 and
+        # https://github.com/networkx/networkx/issues/1654
+        key = uuid1()
         attr_dict = attr_dict or {}
         attr_dict.update(kwargs)
         matcher = attr_dict.get('matcher')
@@ -113,12 +121,7 @@ class RegularLanguageMachine(MultiDiGraph):
         Returns a new version of self and other consisting of the union of
         the edges / nodes and the entrance & nodes of self.
         """
-        machine = RegularLanguageMachine(
-            node_factory=self._node_factory,
-            enter=self.enter,
-            exit=self.exit,
-        )
-        machine.add_edges_from(self.edges(data=True, keys=True))
+        machine = self.isomorphic_copy(relabel=False)
         machine.add_edges_from(other.edges(data=True, keys=True))
         return machine
 
@@ -127,9 +130,46 @@ class RegularLanguageMachine(MultiDiGraph):
         Returns the concatenation of the two machines.
         """
         combined = self.isomorphic_copy(relabel=False)
-        relabel_nodes(combined, {combined.exit: other.enter}, copy=False)
+        if self.successors(self.exit) == [] and other.predecessors(other.enter) == []:
+            # In this case, we can optimize the combined machine by using the same
+            # vertex for both.
+            relabel_nodes(
+                combined, {self.exit: other.enter}, copy=False)
+            combined.add_edges_from(other.edges(data=True, keys=True))
+        else:
+            combined.add_edges_from(other.edges(data=True, keys=True))
+            combined.add_edge(self.exit, other.enter, matcher=Epsilon)
         combined.exit = other.exit
+        return combined
+
+    def __or__(self, other):
+        """
+        Returns a machine which recognizes the disjunction of the two languages.
+        """
+        combined = self.isomorphic_copy(relabel=False)
+        if combined.predecessors(combined.enter) == [] and other.predecessors(other.enter) == []:
+            # In this case, we can optimize the combined machine by using the same
+            # vertex for both.
+            relabel_nodes(combined, {combined.enter: other.enter}, copy=False)
+            combined.enter = other.enter
+        if combined.successors(combined.exit) == [] and other.successors(other.exit) == []:
+            relabel_nodes(combined, {combined.exit: other.exit}, copy=False)
+            combined.exit = other.exit
         combined.add_edges_from(other.edges(data=True, keys=True))
+        if combined.enter != other.enter:
+            orig_enter = combined.enter
+            enter = combined.node_factory()
+            combined.add_node(enter)
+            combined.enter = enter
+            combined.add_edge(combined.enter, other.enter, Epsilon)
+            combined.add_edge(combined.enter, orig_enter, Epsilon)
+        if combined.exit != other.exit:
+            orig_exit = combined.exit
+            exit = combined.node_factory()
+            combined.add_node(exit)
+            combined.exit = exit
+            combined.add_edge(other.exit, combined.exit, Epsilon)
+            combined.add_edge(orig_exit, combined.exit, Epsilon)
         return combined
 
     def node_factory(self):
@@ -272,7 +312,7 @@ class MultiCharMatcher(object):
         self.chars = frozenset(chars)
 
     def __call__(self, string, index):
-        if string[index] in self.chars:
+        if index < len(string) and string[index] in self.chars:
             return MatchInfo(
                 matcher=self,
                 consumed_chars=1,
@@ -304,7 +344,7 @@ class CharRangeMatcher(object):
             raise ValueError('Invalid character range %s' % self)
 
     def __call__(self, string, index):
-        if self.start <= string[index] <= self.end:
+        if index < len(string) and  self.start <= string[index] <= self.end:
             return MatchInfo(
                 matcher=self,
                 consumed_chars=1,
@@ -385,16 +425,6 @@ class RegexVisitor(NodeVisitor):
         lparen, [machine], rparen = children
         return machine
 
-    def disjunction_of(self, disjuncts):
-        if len(disjuncts) == 1:
-            return disjuncts[0]
-        machine = RegularLanguageMachine(node_factory=self.node_factory)
-        for disjunct in disjuncts:
-            machine = machine << disjunct
-            machine.add_edge(machine.enter, disjunct.enter, matcher=Epsilon)
-            machine.add_edge(disjunct.exit, machine.exit, matcher=Epsilon)
-        return machine
-
     def visit_union(self, node, children):
         disjuncts = []
         # This is sort of ugly; parsimonious returns children as a list
@@ -404,7 +434,7 @@ class RegexVisitor(NodeVisitor):
         for (disjunct, superfluous_pipe) in disjuncts_and_pipes:
             disjuncts.append(disjunct)
         disjuncts.append(last_disjunct)
-        return self.disjunction_of(disjuncts)
+        return reduce(operator.or_, disjuncts)
 
     def visit_star(self, node, children):
         machine, star_char = children
@@ -471,7 +501,7 @@ class RegexVisitor(NodeVisitor):
                 MultiCharMatcher(raw_chars),node_factory=_node_factory))
         for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
             machines.append(RegularLanguageMachine.from_matcher(range_matcher))
-        return self.disjunction_of(machines)
+        return reduce(operator.or_, machines)
 
     def visit_repeat_fixed(self, node, children):
         machine, lbrac, repeat, rbrac = children
@@ -480,7 +510,6 @@ class RegexVisitor(NodeVisitor):
             raise ValueError('Invalid repeat %s' % node.text)
         machines = [machine.isomorphic_copy() for _ in range(repeat)]
         result = reduce(operator.add, machines)
-        result._draw()
         return result
 
     def visit_optional(self, node, children):
