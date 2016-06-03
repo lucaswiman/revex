@@ -161,15 +161,15 @@ class RegularLanguageMachine(MultiDiGraph):
             enter = combined.node_factory()
             combined.add_node(enter)
             combined.enter = enter
-            combined.add_edge(combined.enter, other.enter, Epsilon)
-            combined.add_edge(combined.enter, orig_enter, Epsilon)
+            combined.add_edge(combined.enter, other.enter, matcher=Epsilon)
+            combined.add_edge(combined.enter, orig_enter, matcher=Epsilon)
         if combined.exit != other.exit:
             orig_exit = combined.exit
             exit = combined.node_factory()
             combined.add_node(exit)
             combined.exit = exit
-            combined.add_edge(other.exit, combined.exit, Epsilon)
-            combined.add_edge(orig_exit, combined.exit, Epsilon)
+            combined.add_edge(other.exit, combined.exit, matcher=Epsilon)
+            combined.add_edge(orig_exit, combined.exit, matcher=Epsilon)
         return combined
 
     def node_factory(self):

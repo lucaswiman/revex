@@ -83,3 +83,7 @@ def test_that_various_regexes_should_parse():
     m2 = RegularLanguageMachine('a+(bc)*[0-9]')
     assert m2.match('abc0')
     assert not m2.match('abcc0')
+    m3 = RegularLanguageMachine('(a[b-c]*|[x-z]+)')
+    assert m3.match('abbb')
+    assert m3.match('zxy')
+    assert not m3.match('ax')
