@@ -385,7 +385,9 @@ class RegexVisitor(NodeVisitor):
         lparen, [machine], rparen = children
         return machine
 
-    def add_disjunction(self, disjuncts):
+    def disjunction_of(self, disjuncts):
+        if len(disjuncts) == 1:
+            return disjuncts[0]
         machine = RegularLanguageMachine(node_factory=self.node_factory)
         for disjunct in disjuncts:
             machine = machine << disjunct
@@ -402,7 +404,7 @@ class RegexVisitor(NodeVisitor):
         for (disjunct, superfluous_pipe) in disjuncts_and_pipes:
             disjuncts.append(disjunct)
         disjuncts.append(last_disjunct)
-        return self.add_disjunction(disjuncts)
+        return self.disjunction_of(disjuncts)
 
     def visit_star(self, node, children):
         machine, star_char = children
@@ -469,7 +471,7 @@ class RegexVisitor(NodeVisitor):
                 MultiCharMatcher(raw_chars),node_factory=_node_factory))
         for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
             machines.append(RegularLanguageMachine.from_matcher(range_matcher))
-        return self.add_disjunction(machines)
+        return self.disjunction_of(machines)
 
     def visit_repeat_fixed(self, node, children):
         machine, lbrac, repeat, rbrac = children
