@@ -176,6 +176,27 @@ class RegularLanguageMachine(MultiDiGraph):
             'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(self)))
         os.system('open /tmp/foo_{0}.png'.format(id(self)))
 
+    def isomorphic_copy(self):
+        """
+        Relabels the nodes of the machine and returns a copy of it.
+        """
+        mapping = {node: self.node_factory() for node in self.nodes()}
+        new_machine = RegularLanguageMachine(
+            node_factory=self.node_factory,
+            enter=mapping[self.enter],
+            exit=mapping[self.exit],
+        )
+        new_machine.add_edges_from(
+            (mapping.get(n1, n1), mapping.get(n2, n2), k, d.copy())
+            for (n1, n2, k, d) in self.edges_iter(keys=True, data=True))
+
+        new_machine.add_nodes_from(mapping[n] for n in self)
+        new_machine.node.update(
+            {mapping[n]: d.copy() for n, d in self.node.items()})
+        new_machine.graph.update(self.graph.copy())
+
+        return new_machine
+
 
 MatchInfo = collections.namedtuple(
     'MatchInfo',
@@ -302,16 +323,19 @@ REGEX = Grammar(r'''
     re = union / concatenation
     sub_re = union / concatenation
     union = (concatenation "|")+ concatenation
-    concatenation = (star / plus / literal)+
+    concatenation = (star / plus / repeat_fixed / repeat_range / optional / literal)+
     star = literal "*"
     plus = literal "+"
+    optional = literal "?"
+    repeat_fixed = literal "{" ~"\d+" "}"
+    repeat_range = literal "{" ~"\d+" "," ~"\d+" "}"
     literal = group / any / chars / positive_set / negative_set
     group = "(" sub_re ")"
-    escaped_metachar = "\\" ~"[.$^\\*+\[\]()|]"
+    escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
     any = "."
     chars = char+
     char = escaped_metachar / non_metachar
-    non_metachar = ~"[^.$^\\*+\[\]()|]"
+    non_metachar = ~"[^.$^\\*+\[\]()|{}?]"
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
     set_char = ~"[^\\]]|\\]"
@@ -438,6 +462,25 @@ class RegexVisitor(NodeVisitor):
             machine.add_edge(machine.enter, machine.exit, matcher=range_matcher)
             machines.append(machine)
         return self.add_disjunction(machines)
+
+    def visit_repeat_fixed(self, node, children):
+        machine, lbrac, repeat, rbrac = children
+        repeat = int(repeat)
+        chain = RegularLanguageMachine(node_factory=self.node_factory)
+        cur = chain.enter
+        for _ in range(repeat):
+            new_machine = machine.isomorphic_copy()
+            chain = chain << new_machine
+            chain.add_edge(cur, new_machine.enter, matcher=Epsilon)
+            cur = new_machine.exit
+        chain.add_edge(cur, chain.exit, matcher=Epsilon)
+        return chain
+
+    def visit_optional(self, node, children):
+        machine, question_mark = children
+        machine = machine.isomorphic_copy()
+        machine.add_edge(machine.enter, machine.exit, matcher=Epsilon)
+        return machine
 
     def generic_visit(self, node, children):
         return children or node.text
