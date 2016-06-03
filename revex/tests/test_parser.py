@@ -1,3 +1,5 @@
+from itertools import islice
+
 from revex.machine import RegularLanguageMachine
 
 
@@ -59,6 +61,11 @@ def test_complex_regex():
     machine = RegularLanguageMachine(ipv4)
     assert actual.match('127.0.0.1')
     assert machine.match('127.0.0.1')
+    assert actual.match('250.250.250.25')
+    assert machine.match('250.250.250.25')
+    for expr in islice(machine.reverse_string_iter(), 0, 10000):
+        assert machine.match(expr)
+        assert actual.match(expr)
 
 
 def test_that_various_regexes_should_parse():
