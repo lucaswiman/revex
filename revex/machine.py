@@ -62,6 +62,14 @@ class Walk(object):
         nodes.reverse()
         return nodes
 
+    def random_string(self):
+        strings = []
+        cur = self
+        while cur.parent is not None:
+            strings.append(cur.matcher.random_matching_string())
+            cur = cur.parent
+        return ''.join(reversed(strings))
+
     def matching_string_iter(self):
         iterators = []
         cur = self
@@ -250,7 +258,7 @@ class RegularLanguageMachine(MultiDiGraph):
         """
         # TODO: random the shit out of this.
         walk = self.random_walk(max_iter=max_iter)
-        return next(walk.matching_string_iter())
+        return walk.random_string()
 
     def _draw(self):
         """
@@ -329,6 +337,9 @@ class LiteralMatcher(object):
     def __str__(self):
         return '%s' % self.literal
 
+    def random_matching_string(self):
+        return self.literal
+
     def matching_string_iter(self):
         """
         Iterator of matching strings for this node.
@@ -339,6 +350,7 @@ class LiteralMatcher(object):
 @six.python_2_unicode_compatible
 class MultiCharMatcher(object):
     def __init__(self, chars):
+        self.char_array = list(chars)
         self.chars = frozenset(chars)
 
     def __call__(self, string, index):
@@ -360,6 +372,9 @@ class MultiCharMatcher(object):
         if len(self.chars) == 1:
             s = '[%s]' % s
         return s
+
+    def random_matching_string(self):
+        return random.choice(self.char_array)
 
     def matching_string_iter(self):
         return iter(self.chars)
@@ -389,6 +404,9 @@ class CharRangeMatcher(object):
 
     def __str__(self):
         return '[%s-%s]' % (self.start, self.end)
+
+    def random_matching_string(self):
+        return six.unichr(random.randint(ord(self.start), ord(self.end)))
 
     def matching_string_iter(self):
         return (

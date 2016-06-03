@@ -1,5 +1,8 @@
 from itertools import islice
 
+import pytest
+import re
+
 from revex.machine import RegularLanguageMachine, Epsilon, LiteralMatcher
 
 
@@ -53,3 +56,19 @@ def test_reverse_star():
     machine.add_edge(node, '*', matcher=LiteralMatcher('d'))
     assert set(islice(machine.reverse_string_iter(), 0, 7)) == \
            {'', 'ab', 'cd', 'abcd', 'cdab', 'abab', 'cdcd'}
+
+
+@pytest.mark.parametrize('regex', [
+    r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)',
+    r'([a][b][c])*',
+
+    # Email regex from http://www.regular-expressions.info/email.html
+    r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z][A-Z]+',
+])
+def test_random_walk_matches_regex(regex):
+    actual = re.compile(regex)
+    machine = RegularLanguageMachine(regex)
+    for _ in range(100):
+        rand_string = machine.reverse_random_string()
+        assert actual.match(rand_string), '%s should match %s' % (regex, rand_string)
+        assert machine.match(rand_string), '%s should match %s' % (regex, rand_string)
