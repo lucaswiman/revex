@@ -4,8 +4,10 @@ from __future__ import unicode_literals
 
 import collections
 import itertools
+import operator
 
-from networkx import MultiDiGraph
+from functools import reduce
+from networkx import MultiDiGraph, relabel_nodes
 from parsimonious import Grammar, NodeVisitor
 import six
 
@@ -86,6 +88,12 @@ class RegularLanguageMachine(MultiDiGraph):
         self.add_node(self.enter)
         self.add_node(self.exit)
 
+    @classmethod
+    def from_matcher(cls, matcher, node_factory=_node_factory):
+        machine = cls(node_factory=node_factory)
+        machine.add_edge(machine.enter, machine.exit, matcher=matcher)
+        return machine
+
     def add_edge(self, u, v, key=None, attr_dict=None, **kwargs):
         # Note that the order of key and attr_dict are important, since networkx
         # uses them as positional arguments in add_edges_from().
@@ -113,6 +121,16 @@ class RegularLanguageMachine(MultiDiGraph):
         machine.add_edges_from(self.edges(data=True, keys=True))
         machine.add_edges_from(other.edges(data=True, keys=True))
         return machine
+
+    def __add__(self, other):
+        """
+        Returns the concatenation of the two machines.
+        """
+        combined = self.isomorphic_copy(relabel=False)
+        relabel_nodes(combined, {combined.exit: other.enter}, copy=False)
+        combined.exit = other.exit
+        combined.add_edges_from(other.edges(data=True, keys=True))
+        return combined
 
     def node_factory(self):
         return next(self._node_factory)
@@ -176,13 +194,16 @@ class RegularLanguageMachine(MultiDiGraph):
             'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(self)))
         os.system('open /tmp/foo_{0}.png'.format(id(self)))
 
-    def isomorphic_copy(self):
+    def isomorphic_copy(self, relabel=True):
         """
         Relabels the nodes of the machine and returns a copy of it.
         """
-        mapping = {node: self.node_factory() for node in self.nodes()}
+        if relabel:
+            mapping = {node: self.node_factory() for node in self.nodes()}
+        else:
+            mapping = {node: node for node in self.nodes()}
         new_machine = RegularLanguageMachine(
-            node_factory=self.node_factory,
+            node_factory=self._node_factory,
             enter=mapping[self.enter],
             exit=mapping[self.exit],
         )
@@ -358,15 +379,7 @@ class RegexVisitor(NodeVisitor):
     def visit_concatenation(self, node, children):
         # ``children`` is a list of (enter, exit) nodes which need to be hooked
         # together (concatenated).
-        sub_machines = [machine for [machine] in children]
-        machine = RegularLanguageMachine(node_factory=self.node_factory)
-        last = machine.enter
-        for sub_machine in sub_machines:
-            machine = machine << sub_machine
-            machine.add_edge(last, sub_machine.enter, matcher=Epsilon)
-            last = sub_machine.exit
-        machine.add_edge(last, machine.exit, matcher=Epsilon)
-        return machine
+        return reduce(operator.add, [machine for [machine] in children])
 
     def visit_group(self, node, children):
         lparen, [machine], rparen = children
@@ -418,9 +431,8 @@ class RegexVisitor(NodeVisitor):
 
     def visit_chars(self, node, children):
         text = ''.join(children)
-        machine = RegularLanguageMachine(node_factory=self.node_factory)
-        machine.add_edge(machine.enter, machine.exit, matcher=LiteralMatcher(text))
-        return machine
+        return RegularLanguageMachine.from_matcher(
+            LiteralMatcher(text), node_factory=self.node_factory)
 
     def visit_escaped_metachar(self, node, children):
         slash, char = children
@@ -453,28 +465,21 @@ class RegexVisitor(NodeVisitor):
         raw_chars = ''.join(s for s in items if not isinstance(s, CharRangeMatcher))
         machines = []
         if raw_chars:
-            machine = RegularLanguageMachine(node_factory=self.node_factory)
-            machine.add_edge(machine.enter, machine.exit,
-                             matcher=MultiCharMatcher(raw_chars))
-            machines.append(machine)
+            machines.append(RegularLanguageMachine.from_matcher(
+                MultiCharMatcher(raw_chars),node_factory=_node_factory))
         for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
-            machine = RegularLanguageMachine(node_factory=self.node_factory)
-            machine.add_edge(machine.enter, machine.exit, matcher=range_matcher)
-            machines.append(machine)
+            machines.append(RegularLanguageMachine.from_matcher(range_matcher))
         return self.add_disjunction(machines)
 
     def visit_repeat_fixed(self, node, children):
         machine, lbrac, repeat, rbrac = children
         repeat = int(repeat)
-        chain = RegularLanguageMachine(node_factory=self.node_factory)
-        cur = chain.enter
-        for _ in range(repeat):
-            new_machine = machine.isomorphic_copy()
-            chain = chain << new_machine
-            chain.add_edge(cur, new_machine.enter, matcher=Epsilon)
-            cur = new_machine.exit
-        chain.add_edge(cur, chain.exit, matcher=Epsilon)
-        return chain
+        if repeat == 0:
+            raise ValueError('Invalid repeat %s' % node.text)
+        machines = [machine.isomorphic_copy() for _ in range(repeat)]
+        result = reduce(operator.add, machines)
+        result._draw()
+        return result
 
     def visit_optional(self, node, children):
         machine, question_mark = children
