@@ -448,7 +448,7 @@ REGEX = Grammar(r'''
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
     set_char = ~"[^\\]]|\\\\]"
-    set_items = "-"? (range / ~"[^\\]]")+ "-"?
+    set_items = (range / ~"[^\\]]")+
     range = set_char "-" set_char
 ''')
 
@@ -537,10 +537,7 @@ class RegexVisitor(NodeVisitor):
     def visit_set_items(self, node, children):
         # Dashes can appear either at the beginning or the end of a char-range
         # block and count as a dash.
-        [maybe_dash, itemsets, also_maybe_dash] = children
-        if maybe_dash or also_maybe_dash:
-            itemsets.append('-')
-        return [item for item, in itemsets]
+        return [item for item, in children]
 
     def visit_positive_set(self, node, children):
         [lbrac, items, rbrac] = children
