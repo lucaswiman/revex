@@ -62,7 +62,9 @@ def test_reverse_star():
     r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)',
     r'([a][b][c])*',
 
-    # Email regex from http://www.regular-expressions.info/email.html
+    # Email regex, based on http://www.regular-expressions.info/email.html
+    r'[-A-Z0-9._%+]+@([A-Z][A-Z0-9-]*\.)+[A-Z][A-Z]+',
+    # Note: broken because of the trailing dash.
     r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z][A-Z]+',
 ])
 def test_random_walk_matches_regex(regex):
