@@ -522,16 +522,17 @@ class RegexVisitor(NodeVisitor):
         child, = children
         return child
 
+    def visit_set_char(self, node, children):
+        char = node.text
+        if len(char) == 2:
+            assert char[0] == '\\', 'Bug! %s' % char
+            return char[1]
+        return char
+
     def visit_range(self, node, children):
         # Since a range may be inverted or not, we need to add nodes to the
         # machine for it up the stack.
         start, dash, end = children
-        if len(start) == 2:
-            assert start[0] == '\\', 'Bug! %s' % start
-            start = start[1]
-        if len(end) == 2:
-            assert end[0] == '\\', 'Bug! %s' % end
-            end = end[1]
         return CharRangeMatcher(start, end)
 
     def visit_set_items(self, node, children):
