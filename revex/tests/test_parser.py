@@ -1,4 +1,5 @@
 from itertools import islice
+import re
 
 from revex.machine import RegularLanguageMachine
 
@@ -64,8 +65,7 @@ def test_complex_regex():
     # regex to recognize IPv4 addresses. From
     # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # nopep8
     ipv4 = r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
-    import re
-    actual = re.compile(ipv4)
+    actual = re.compile('^%s$' % ipv4)
     machine = RegularLanguageMachine(ipv4)
     assert actual.match('127.0.0.1')
     assert machine.match('127.0.0.1')
@@ -87,3 +87,29 @@ def test_that_various_regexes_should_parse():
     assert m3.match('abbb')
     assert m3.match('zxy')
     assert not m3.match('ax')
+
+
+def test_dot_any():
+    m = RegularLanguageMachine('.+')
+    assert m.match('a')
+    assert m.match('b')
+
+
+def test_inverted_charset():
+    m = RegularLanguageMachine('[^abc]')
+    assert m.match('d')
+    assert not m.match('a')
+    assert not m.match('b')
+    assert not m.match('c')
+
+
+def test_open_ended_range():
+    m = RegularLanguageMachine('a{,5}')
+    for i in range(6):
+        assert m.match('a' * i)
+    assert not m.match('a' * 6)
+    m2 = RegularLanguageMachine('a{3,}')
+    for i in range(3):
+        assert not m2.match('a' * i)
+    for i in range(3, 10):
+        assert m2.match('a' * i)

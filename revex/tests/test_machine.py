@@ -68,7 +68,7 @@ def test_reverse_star():
     r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z][A-Z]+',
 ])
 def test_random_walk_matches_regex(regex):
-    actual = re.compile(regex)
+    actual = re.compile('^%s$' % regex)
     machine = RegularLanguageMachine(regex)
     for _ in range(100):
         rand_string = machine.reverse_random_string()
