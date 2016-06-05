@@ -531,23 +531,11 @@ class RegexVisitor(NodeVisitor):
 
     def visit_star(self, node, children):
         machine, star_char = children
-        star = RegularLanguageMachine(node_factory=self.node_factory) << machine
-        star_node = star.node_factory()
-        star.add_edge(star.enter, star_node, matcher=Epsilon)
-        star.add_edge(star_node, star.exit, matcher=Epsilon)
-        star.add_edge(star_node, machine.enter, matcher=Epsilon)
-        star.add_edge(machine.exit, star_node, matcher=Epsilon)
-        return star
+        return repeat(machine, 0, None)
 
     def visit_plus(self, node, children):
         machine, plus_char = children
-        plus = RegularLanguageMachine(node_factory=self.node_factory) << machine
-        plus_node = plus.node_factory()
-        plus.add_edge(plus.enter, machine.enter, matcher=Epsilon)
-        plus.add_edge(machine.exit, plus_node, matcher=Epsilon)
-        plus.add_edge(plus_node, machine.enter, matcher=Epsilon)
-        plus.add_edge(plus_node, plus.exit, matcher=Epsilon)
-        return plus
+        return repeat(machine, 1, None)
 
     def visit_literal(self, node, children):
         # Why doesn't parsimonious do this for you?
@@ -611,9 +599,7 @@ class RegexVisitor(NodeVisitor):
 
     def visit_optional(self, node, children):
         machine, question_mark = children
-        machine = machine.isomorphic_copy()
-        machine.add_edge(machine.enter, machine.exit, matcher=Epsilon)
-        return machine
+        return repeat(machine, 0, 1)
 
     def generic_visit(self, node, children):
         return children or node.text
