@@ -597,13 +597,17 @@ class RegexVisitor(NodeVisitor):
         return reduce(operator.or_, machines)
 
     def visit_repeat_fixed(self, node, children):
-        machine, lbrac, repeat, rbrac = children
-        repeat = int(repeat)
-        if repeat == 0:
+        machine, lbrac, repeat_count, rbrac = children
+        repeat_count = int(repeat_count)
+        if repeat_count == 0:
             raise ValueError('Invalid repeat %s' % node.text)
-        machines = [machine.isomorphic_copy() for _ in range(repeat)]
-        result = reduce(operator.add, machines)
-        return result
+        return repeat(machine, repeat_count, repeat_count)
+
+    def visit_repeat_range(self, node, children):
+        machine, lbrac, min_repeat, comma, max_repeat, rbrac = children
+        min_repeat = int(min_repeat or '0')
+        max_repeat = None if not max_repeat else int(max_repeat)
+        return repeat(machine, min_repeat, max_repeat)
 
     def visit_optional(self, node, children):
         machine, question_mark = children
