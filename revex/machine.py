@@ -13,6 +13,8 @@ from uuid import uuid1
 from networkx import MultiDiGraph, relabel_nodes
 from parsimonious import Grammar, NodeVisitor
 import six
+from six.moves import range
+from six import unichr as chr
 
 
 class Walk(object):
@@ -314,8 +316,6 @@ class LiteralMatcher(object):
         """
         Match the string at the given index.
 
-        :param str:
-        :param index:
         :return: MatchInfo saying if the string matched, and how
         many characters are consumed; otherwise None.
         """
@@ -408,11 +408,42 @@ class CharRangeMatcher(object):
         return '[%s-%s]' % (self.start, self.end)
 
     def random_matching_string(self):
-        return six.unichr(random.randint(ord(self.start), ord(self.end)))
+        return chr(random.randint(ord(self.start), ord(self.end)))
 
     def matching_string_iter(self):
-        return (
-            six.unichr(i) for i in range(ord(self.start), ord(self.end) + 1))
+        return (chr(i) for i in range(ord(self.start), ord(self.end) + 1))
+
+
+@six.python_2_unicode_compatible
+class _Dot(object):
+    def __call__(self, string, index):
+        if index < len(string):
+            return MatchInfo(
+                matcher=self,
+                consumed_chars=1,
+                string=string,
+                index=index,
+            )
+        else:
+            return None
+
+    def __repr__(self):
+        return 'DotMatcher()'
+
+    def __str__(self):
+        return '.'
+
+    def random_matching_string(self):
+        """
+        TODO: properly handle unicode; idk. How does Hypothesis handle this?
+        """
+        return chr(random.choice(range(9, 512)))
+
+    def matching_string_iter(self):
+        return (chr(i) for i in range(9, 512))
+
+
+Dot = _Dot()
 
 
 @six.python_2_unicode_compatible
@@ -550,6 +581,10 @@ class RegexVisitor(NodeVisitor):
     def visit_escaped_metachar(self, node, children):
         slash, char = children
         return char
+
+    def visit_any(self, node, children):
+        return RegularLanguageMachine.from_matcher(
+            Dot, node_factory=self.node_factory)
 
     def visit_char(self, node, children):
         child, = children
