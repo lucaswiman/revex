@@ -272,12 +272,14 @@ class RegularLanguageMachine(MultiDiGraph):
             'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(self)))
         os.system('open /tmp/foo_{0}.png'.format(id(self)))
 
-    def isomorphic_copy(self, relabel=True):
+    def isomorphic_copy(self, relabel=True, manual_map=None):
         """
         Relabels the nodes of the machine and returns a copy of it.
         """
         if relabel:
             mapping = {node: self.node_factory() for node in self.nodes()}
+            if manual_map:
+                mapping.update(manual_map)
         else:
             mapping = {node: node for node in self.nodes()}
         new_machine = RegularLanguageMachine(
@@ -437,7 +439,7 @@ REGEX = Grammar(r'''
     plus = literal "+"
     optional = literal "?"
     repeat_fixed = literal "{" ~"\d+" "}"
-    repeat_range = literal "{" ~"\d+" "," ~"\d+" "}"
+    repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
     literal = group / any / chars / positive_set / negative_set
     group = "(" sub_re ")"
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
@@ -451,6 +453,49 @@ REGEX = Grammar(r'''
     set_items = (range / ~"[^\\]]")+
     range = set_char "-" set_char
 ''')
+
+
+def repeat(machine, min_repeat, max_repeat):
+    """
+    Repeats the machine in the given range.
+
+    If max_repeat is None, the right is unbounded (any finite number of repeats).
+
+    Examples:
+        (machine)* == machine{0,} == repeat(machine, 0, None)
+        (machine)+ == machine{1,} == repeat(machine, 1, None
+        (machine){n} == repeat(machine, n, n)
+        (machine){n,m} == repeat(machine, n, m}
+        (machine){,n} == repeat(machine, 0, n)
+        (machine){n,} == repeat(machine, n, None)
+    """
+    num_machines = max_repeat or min_repeat or 1
+    machines = [machine.isomorphic_copy()]
+    for _ in six.moves.range(num_machines - 1):
+        # Construct a machine whose entry node is the same as the previous exit
+        # node.
+        machines.append(
+            machine.isomorphic_copy(manual_map={machine.enter: machines[-1].exit}))
+
+    repeated = RegularLanguageMachine(
+        node_factory=machine._node_factory,
+        enter = machines[0].enter,
+    )
+    # Include all the sub machines in the repeated machine.
+    for m in machines:
+        repeated.add_edges_from(m.edges(data=True, keys=True))
+
+    # Add "early exit" edges for when we've finished the minimum number of repeats.
+    for m in machines[min_repeat:]:
+        repeated.add_edge(m.enter, repeated.exit, matcher=Epsilon)
+
+    last_machine = machines[-1]
+    repeated.add_edge(last_machine.exit, repeated.exit, matcher=Epsilon)
+    # Add an epsilon transition to loop the last machine indefinitely if we have
+    # no upper bound.
+    if max_repeat is None:
+        repeated.add_edge(last_machine.exit, last_machine.enter, matcher=Epsilon)
+    return repeated
 
 
 class RegexVisitor(NodeVisitor):
