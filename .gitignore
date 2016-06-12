@@ -1,0 +1,6 @@
+*.pyc
+.cache
+.coverage
+.idea
+.tox
+*.egg-info
