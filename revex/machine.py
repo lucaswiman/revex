@@ -17,6 +17,10 @@ from six.moves import range
 from six import unichr as chr
 
 
+# TODO: properly handle unicode. 9 and 512 were chosen arbitrarily.
+UNICODE_CHARS = [chr(i) for i in range(9, 512)]
+
+
 class Walk(object):
 
     def __init__(self, parent, node, matcher):
@@ -352,6 +356,9 @@ class LiteralMatcher(object):
 
 @six.python_2_unicode_compatible
 class MultiCharMatcher(object):
+    """
+    Matches any of the given characters.
+    """
     def __init__(self, chars):
         self.char_array = list(chars)
         self.chars = frozenset(chars)
@@ -384,6 +391,40 @@ class MultiCharMatcher(object):
 
 
 @six.python_2_unicode_compatible
+class ComplementMatcher(object):
+    """
+    Matches the complement of the given characters.
+    """
+    def __init__(self, chars):
+        self.char_array = list(chars)
+        self.chars = frozenset(chars)
+        self.valid_chars = list(set(UNICODE_CHARS) - self.chars)
+
+    def __call__(self, string, index):
+        if index < len(string) and string[index] not in self.chars:
+            return MatchInfo(
+                matcher=self,
+                consumed_chars=1,
+                string=string,
+                index=index,
+            )
+        else:
+            return None
+
+    def __repr__(self):
+        return 'ComplementMatcher(%r)' % ''.join(self.chars)
+
+    def __str__(self):
+        return '[^%s]' % ','.join(self.chars)
+
+    def random_matching_string(self):
+        return random.choice(self.valid_chars)
+
+    def matching_string_iter(self):
+        return iter(self.valid_chars)
+
+
+@six.python_2_unicode_compatible
 class CharRangeMatcher(object):
     def __init__(self, start, end):
         self.start = start
@@ -392,7 +433,7 @@ class CharRangeMatcher(object):
             raise ValueError('Invalid character range %s' % self)
 
     def __call__(self, string, index):
-        if index < len(string) and  self.start <= string[index] <= self.end:
+        if index < len(string) and self.start <= string[index] <= self.end:
             return MatchInfo(
                 matcher=self,
                 consumed_chars=1,
@@ -438,10 +479,10 @@ class _Dot(object):
         """
         TODO: properly handle unicode; idk. How does Hypothesis handle this?
         """
-        return chr(random.choice(range(9, 512)))
+        return random.choice(UNICODE_CHARS)
 
     def matching_string_iter(self):
-        return (chr(i) for i in range(9, 512))
+        return iter(UNICODE_CHARS)
 
 
 Dot = _Dot()
@@ -511,7 +552,7 @@ def repeat(machine, min_repeat, max_repeat):
 
     repeated = RegularLanguageMachine(
         node_factory=machine._node_factory,
-        enter = machines[0].enter,
+        enter=machines[0].enter,
     )
     # Include all the sub machines in the repeated machine.
     for m in machines:
@@ -619,6 +660,18 @@ class RegexVisitor(NodeVisitor):
         for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
             machines.append(RegularLanguageMachine.from_matcher(
                 range_matcher, node_factory=self.node_factory))
+        return reduce(operator.or_, machines)
+
+    def visit_negative_set(self, node, children):
+        [lbrac, items, rbrac] = children
+        raw_chars = ''.join(s for s in items if not isinstance(s, CharRangeMatcher))
+        machines = []
+        if raw_chars:
+            machines.append(RegularLanguageMachine.from_matcher(
+                ComplementMatcher(raw_chars), node_factory=self.node_factory))
+        for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
+            machines.append(RegularLanguageMachine.from_matcher(
+                ~range_matcher, node_factory=self.node_factory))
         return reduce(operator.or_, machines)
 
     def visit_repeat_fixed(self, node, children):
