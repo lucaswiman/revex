@@ -85,16 +85,20 @@ class Walk(object):
 
 _node_factory = itertools.count()
 
+
 class RegularLanguageMachine(MultiDiGraph):
-    def __init__(self, regex=None, node_factory=_node_factory, enter=None, exit=None):
+    def __init__(self, regex=None, node_factory=None, enter=None, exit=None):
         super(RegularLanguageMachine, self).__init__()
-        self._node_factory = node_factory
+        self._node_factory = node_factory or _node_factory
         self.regex = regex
         if self.regex is not None:
             machine = RegexVisitor().parse(self.regex)
             self.enter = machine.enter
             self.exit = machine.exit
             self.add_edges_from(machine.edges(data=True, keys=True))
+            relabel_nodes(self, {self.enter: 'enter', self.exit: 'exit'}, copy=False)
+            self.enter = 'enter'
+            self.exit = 'exit'
         else:
             self.enter = self.node_factory() if enter is None else enter
             self.exit = self.node_factory() if exit is None else exit
@@ -102,7 +106,7 @@ class RegularLanguageMachine(MultiDiGraph):
         self.add_node(self.exit)
 
     @classmethod
-    def from_matcher(cls, matcher, node_factory=_node_factory):
+    def from_matcher(cls, matcher, node_factory=None):
         machine = cls(node_factory=node_factory)
         machine.add_edge(machine.enter, machine.exit, matcher=matcher)
         return machine
@@ -614,9 +618,10 @@ class RegexVisitor(NodeVisitor):
         machines = []
         if raw_chars:
             machines.append(RegularLanguageMachine.from_matcher(
-                MultiCharMatcher(raw_chars),node_factory=_node_factory))
+                MultiCharMatcher(raw_chars), node_factory=_node_factory))
         for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
-            machines.append(RegularLanguageMachine.from_matcher(range_matcher))
+            machines.append(RegularLanguageMachine.from_matcher(
+                range_matcher, node_factory=_node_factory))
         return reduce(operator.or_, machines)
 
     def visit_repeat_fixed(self, node, children):

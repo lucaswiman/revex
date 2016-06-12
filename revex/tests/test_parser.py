@@ -1,6 +1,8 @@
 from itertools import islice
 import re
 
+import itertools
+
 from revex.machine import RegularLanguageMachine
 
 
@@ -113,3 +115,12 @@ def test_open_ended_range():
         assert not m2.match('a' * i)
     for i in range(3, 10):
         assert m2.match('a' * i)
+
+
+def test_buggy_machine_building():
+    # Fun non-deterministic bug in constructing some machines.
+    from revex import machine
+    machine._node_factory = itertools.count()
+    for _ in range(100):
+        m = RegularLanguageMachine('c(a|b){3,10}[a-z]')
+        assert not m.match('c' + 'a' * 50 + 'q')
