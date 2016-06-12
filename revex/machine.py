@@ -482,7 +482,6 @@ class ComplementCharRangeMatcher(CharRangeMatcher):
         raise NotImplementedError
 
 
-
 @six.python_2_unicode_compatible
 class _Dot(object):
     def __call__(self, string, index):

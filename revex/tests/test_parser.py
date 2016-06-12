@@ -113,6 +113,16 @@ def test_inverted_range():
     assert not m.match('c')
 
 
+def test_inverted_range_and_charset():
+    m = RegularLanguageMachine('[^h-jab-def]')
+    for c in 'klmnopqrstuvwxyz':
+        assert m.match(c)
+    for c in 'abcdefghij':
+        assert not m.match(c)
+    assert m.match('-')
+    assert m.match('^')
+
+
 def test_open_ended_range():
     m = RegularLanguageMachine('a{,5}')
     for i in range(6):
