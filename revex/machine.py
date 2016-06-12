@@ -444,7 +444,7 @@ class CharRangeMatcher(object):
             return None
 
     def __repr__(self):
-        return 'CharRangeMatcher(%r, %r)' % (self.start, self.end)
+        return '%s(%r, %r)' % (self.__class__.__name__, self.start, self.end)
 
     def __str__(self):
         return '[%s-%s]' % (self.start, self.end)
@@ -454,6 +454,33 @@ class CharRangeMatcher(object):
 
     def matching_string_iter(self):
         return (chr(i) for i in range(ord(self.start), ord(self.end) + 1))
+
+    def __invert__(self):
+        return ComplementCharRangeMatcher(self.start, self.end)
+
+
+@six.python_2_unicode_compatible
+class ComplementCharRangeMatcher(CharRangeMatcher):
+    def __call__(self, string, index):
+        if index < len(string) and self.start > string[index] or string[index] > self.end:
+            return MatchInfo(
+                matcher=self,
+                consumed_chars=1,
+                string=string,
+                index=index,
+            )
+        else:
+            return None
+
+    def __str__(self):
+        return '[^%s-%s]' % (self.start, self.end)
+
+    def random_matching_string(self):
+        raise NotImplementedError
+
+    def matching_string_iter(self):
+        raise NotImplementedError
+
 
 
 @six.python_2_unicode_compatible
