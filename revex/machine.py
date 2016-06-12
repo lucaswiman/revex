@@ -83,13 +83,10 @@ class Walk(object):
             yield ''.join(substrings)
 
 
-_node_factory = itertools.count()
-
-
 class RegularLanguageMachine(MultiDiGraph):
     def __init__(self, regex=None, node_factory=None, enter=None, exit=None):
         super(RegularLanguageMachine, self).__init__()
-        self._node_factory = node_factory or _node_factory
+        self._node_factory = node_factory or itertools.count()
         self.regex = regex
         if self.regex is not None:
             machine = RegexVisitor().parse(self.regex)
@@ -618,10 +615,10 @@ class RegexVisitor(NodeVisitor):
         machines = []
         if raw_chars:
             machines.append(RegularLanguageMachine.from_matcher(
-                MultiCharMatcher(raw_chars), node_factory=_node_factory))
+                MultiCharMatcher(raw_chars), node_factory=self.node_factory))
         for range_matcher in (s for s in items if isinstance(s, CharRangeMatcher)):
             machines.append(RegularLanguageMachine.from_matcher(
-                range_matcher, node_factory=_node_factory))
+                range_matcher, node_factory=self.node_factory))
         return reduce(operator.or_, machines)
 
     def visit_repeat_fixed(self, node, children):
