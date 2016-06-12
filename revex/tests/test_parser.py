@@ -105,6 +105,14 @@ def test_inverted_charset():
     assert not m.match('c')
 
 
+def test_inverted_range():
+    m = RegularLanguageMachine('[^a-c]')
+    assert m.match('d')
+    assert not m.match('a')
+    assert not m.match('b')
+    assert not m.match('c')
+
+
 def test_open_ended_range():
     m = RegularLanguageMachine('a{,5}')
     for i in range(6):
