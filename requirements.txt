@@ -1,4 +1,4 @@
 networkx
--e git+git://github.com/lucaswiman/parsimonious.git@py3kcompatibility#egg=parsimonious
+parsimonious>=0.7.0
 six
 pygraphviz
