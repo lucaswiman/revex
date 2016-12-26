@@ -30,6 +30,10 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
         - Concatenation:   R1 + R2
         - Star:            Star(R)
     """
+    @classmethod
+    def compile(self, regex):
+        return RegexVisitor().parse(regex)
+
     def __add__(self, other):
         return Concatenation(self, other)
 

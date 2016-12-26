@@ -4,17 +4,18 @@ import re
 import itertools
 
 from revex.machine import RegularLanguageMachine
+from revex.derivative import RegularExpression
 
 
 def test_string_literal_regex():
-    machine = RegularLanguageMachine('abc')
+    machine = RegularExpression.compile('abc')
     assert machine.match('abc')
     assert not machine.match('abcd')
     assert not machine.match('ab')
 
 
 def test_star():
-    machine = RegularLanguageMachine('a*')
+    machine = RegularExpression.compile('a*')
     assert machine.match('')
     assert machine.match('a')
     assert machine.match('aa')
@@ -22,7 +23,7 @@ def test_star():
 
 
 def test_plus():
-    machine = RegularLanguageMachine('a+')
+    machine = RegularExpression.compile('a+')
     assert not machine.match('')
     assert machine.match('a')
     assert machine.match('aa')
@@ -30,7 +31,7 @@ def test_plus():
 
 
 def test_union():
-    machine = RegularLanguageMachine('a|b|c')
+    machine = RegularExpression.compile('a|b|c')
     assert machine.match('a')
     assert machine.match('b')
     assert machine.match('c')
@@ -38,14 +39,14 @@ def test_union():
 
 
 def test_group():
-    machine = RegularLanguageMachine('(ab)+')
+    machine = RegularExpression.compile('(ab)+')
     assert machine.match('ab')
     assert machine.match('abab')
     assert not machine.match('aba')
 
 
 def test_char_range():
-    machine = RegularLanguageMachine('[-a-z1-9]')
+    machine = RegularExpression.compile('[-a-z1-9]')
     assert machine.match('a')
     assert machine.match('b')
     assert machine.match('z')
@@ -56,7 +57,7 @@ def test_char_range():
 
 
 def test_initial_substring():
-    machine = RegularLanguageMachine('[a][b][c][d][e]')
+    machine = RegularExpression.compile('[a][b][c][d][e]')
     assert machine.match('abcde')
     # This terminates the search before reaching the exit node of the graph.
     # We shouldn't match or continue trying to traverse the string.
@@ -79,26 +80,26 @@ def test_complex_regex():
 
 
 def test_that_various_regexes_should_parse():
-    m1 = RegularLanguageMachine('a+(bc)*')
+    m1 = RegularExpression.compile('a+(bc)*')
     assert m1.match('aaa')
     assert m1.match('abcbc')
-    m2 = RegularLanguageMachine('a+(bc)*[0-9]')
+    m2 = RegularExpression.compile('a+(bc)*[0-9]')
     assert m2.match('abc0')
     assert not m2.match('abcc0')
-    m3 = RegularLanguageMachine('(a[b-c]*|[x-z]+)')
+    m3 = RegularExpression.compile('(a[b-c]*|[x-z]+)')
     assert m3.match('abbb')
     assert m3.match('zxy')
     assert not m3.match('ax')
 
 
 def test_dot_any():
-    m = RegularLanguageMachine('.+')
+    m = RegularExpression.compile('.+')
     assert m.match('a')
     assert m.match('b')
 
 
 def test_inverted_charset():
-    m = RegularLanguageMachine('[^abc]')
+    m = RegularExpression.compile('[^abc]')
     assert m.match('d')
     assert not m.match('a')
     assert not m.match('b')
@@ -106,7 +107,7 @@ def test_inverted_charset():
 
 
 def test_inverted_range():
-    m = RegularLanguageMachine('[^a-c]')
+    m = RegularExpression.compile('[^a-c]')
     assert m.match('d')
     assert not m.match('a')
     assert not m.match('b')
@@ -114,7 +115,7 @@ def test_inverted_range():
 
 
 def test_inverted_range_and_charset():
-    m = RegularLanguageMachine('[^h-jab-def]')
+    m = RegularExpression.compile('[^h-jab-def]')
     for c in 'klmnopqrstuvwxyz':
         assert m.match(c)
     for c in 'abcdefghij':
@@ -124,11 +125,11 @@ def test_inverted_range_and_charset():
 
 
 def test_open_ended_range():
-    m = RegularLanguageMachine('a{,5}')
+    m = RegularExpression.compile('a{,5}')
     for i in range(6):
         assert m.match('a' * i)
     assert not m.match('a' * 6)
-    m2 = RegularLanguageMachine('a{3,}')
+    m2 = RegularExpression.compile('a{3,}')
     for i in range(3):
         assert not m2.match('a' * i)
     for i in range(3, 10):
@@ -139,5 +140,5 @@ def test_buggy_machine_building():
     # Fun non-deterministic bug in constructing some machines.
     node_factory = itertools.count()
     for _ in range(8):
-        m = RegularLanguageMachine('a{0,2}[a-z]', node_factory=node_factory)
+        m = RegularExpression.compile('a{0,2}[a-z]', node_factory=node_factory)
         assert not m.match('a' * 3 + 'q')
