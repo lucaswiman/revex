@@ -56,7 +56,7 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     def derivative(self, char):
         raise NotImplementedError
 
-    def matches(self, string):
+    def match(self, string):
         regex = self
         for char in string:
             regex = regex.derivative(char)

@@ -27,19 +27,19 @@ def test_complementation():
 
 
 def test_matching():
-    assert (a + b).matches('ab')
-    assert not (a + b).matches('abc')
-    assert not a.matches('abc')
-    assert (~a).matches('')
-    assert (~a).matches('abc')
-    assert (~a).matches('q')
-    assert ((a + b) | c).matches('ab')
-    assert ((a + b) | c).matches('c')
-    assert not (a & b).matches('a')
+    assert (a + b).match('ab')
+    assert not (a + b).match('abc')
+    assert not a.match('abc')
+    assert (~a).match('')
+    assert (~a).match('abc')
+    assert (~a).match('q')
+    assert ((a + b) | c).match('ab')
+    assert ((a + b) | c).match('c')
+    assert not (a & b).match('a')
 
-    assert (Star(a) & Star(a + a | b)).matches('aa')
-    assert not (Star(a) & Star(a + a | b)).matches('aaa')
-    assert (Star(a) & Star(a + a | b)).matches('aaaa')
+    assert (Star(a) & Star(a + a | b)).match('aa')
+    assert not (Star(a) & Star(a + a | b)).match('aaa')
+    assert (Star(a) & Star(a + a | b)).match('aaaa')
 
 
 def test_equality_and_construction():
@@ -84,4 +84,3 @@ def test_parser():
     assert RegexVisitor().parse('[abc]') == a | b | c
     assert RegexVisitor().parse('[^abc]') == ~a & ~b & ~c
     assert RegexVisitor().parse('[^a-c]') == ~a & ~b & ~c
-    from pytest import set_trace; set_trace()
