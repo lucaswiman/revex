@@ -46,8 +46,10 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     def __invert__(self):
         return Complement(self)
 
-    def __rmul__(self, repeat):
+    def __mul__(self, repeat):
         return EPSILON if repeat == 0 else reduce(operator.add, [self] * repeat)
+
+    __rmul__ = __mul__
 
     @abc.abstractproperty
     def accepting(self):
