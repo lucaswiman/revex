@@ -1,5 +1,5 @@
 from revex.derivative import (
-    EMPTY, EPSILON, Symbol, Concatenation, Intersection, Union, Complement, Star)
+    EMPTY, EPSILON, Symbol, Concatenation, Intersection, Union, Complement, Star, RegexVisitor)
 
 
 a, b, c = map(Symbol, 'abc')
@@ -76,3 +76,12 @@ def test_equality_and_construction():
     assert a & EPSILON == EPSILON & a == EMPTY
     assert a & Symbol('a') == a
     assert a | Symbol('a') == a
+
+
+def test_parser():
+    assert RegexVisitor().parse('ab|c') == (a + b) | c
+    assert RegexVisitor().parse('[a-c]*') == Star(a | b | c)
+    assert RegexVisitor().parse('[abc]') == a | b | c
+    assert RegexVisitor().parse('[^abc]') == ~a & ~b & ~c
+    assert RegexVisitor().parse('[^a-c]') == ~a & ~b & ~c
+    from pytest import set_trace; set_trace()

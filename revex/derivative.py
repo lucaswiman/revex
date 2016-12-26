@@ -14,6 +14,7 @@ import operator
 from functools import reduce, total_ordering
 
 import six
+from parsimonious import NodeVisitor, Grammar
 
 
 @total_ordering
@@ -40,6 +41,9 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
 
     def __invert__(self):
         return Complement(self)
+
+    def __rmul__(self, repeat):
+        return EPSILON if repeat == 0 else reduce(operator.add, [self] * repeat)
 
     @abc.abstractproperty
     def accepting(self):
@@ -317,3 +321,130 @@ class Star(RegularExpression):
 
     def __repr__(self):
         return 'Star(%r)' % self.regex
+
+
+REGEX = Grammar(r'''
+    re = union / concatenation
+    sub_re = union / concatenation
+    union = (concatenation "|")+ concatenation
+    concatenation = (star / plus / repeat_fixed / repeat_range / optional / literal)+
+    star = literal "*"
+    plus = literal "+"
+    optional = literal "?"
+    repeat_fixed = literal "{" ~"\d+" "}"
+    repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
+    literal = group / any / chars / negative_set / positive_set
+    group = "(" sub_re ")"
+    escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
+    any = "."
+    chars = char+
+    char = escaped_metachar / non_metachar
+    non_metachar = ~"[^.$^\\*+\[\]()|{}?]"
+    positive_set = "[" set_items "]"
+    negative_set = "[^" set_items "]"
+    set_char = ~"[^\\]]|\\\\]"
+    set_items = (range / ~"[^\\]]")+
+    range = set_char "-" set_char
+''')
+
+
+class RegexVisitor(NodeVisitor):
+    grammar = REGEX
+
+    def visit_re(self, node, children):
+        [re] = children
+        return re
+
+    def visit_concatenation(self, node, children):
+        return reduce(operator.add, [re for [re] in children])
+
+    def visit_group(self, node, children):
+        lparen, [re], rparen = children
+        return re
+
+    def visit_union(self, node, children):
+        disjuncts = []
+        # This is sort of ugly; parsimonious returns children as a list
+        # of all its left disjuncts (including the | character) and the final one
+        # (sans pipe character).
+        disjuncts_and_pipes, last_disjunct = children
+        for (disjunct, superfluous_pipe) in disjuncts_and_pipes:
+            disjuncts.append(disjunct)
+        disjuncts.append(last_disjunct)
+        return reduce(operator.or_, disjuncts)
+
+    def visit_star(self, node, children):
+        re, star_char = children
+        return Star(re)
+
+    def visit_plus(self, node, children):
+        re, plus_char = children
+        return re + Star(re)
+
+    def visit_literal(self, node, children):
+        # Why doesn't parsimonious do this for you?
+        [child] = children
+        return child
+
+    def visit_chars(self, node, children):
+        return reduce(operator.add, children)
+
+    def visit_escaped_metachar(self, node, children):
+        slash, char = children
+        return Symbol(char)
+
+    def visit_any(self, node, children):
+        raise NotImplementedError()
+
+    def visit_char(self, node, children):
+        child, = children
+        return Symbol(child)
+
+    def visit_set_char(self, node, children):
+        char = node.text
+        if len(char) == 2:
+            assert char[0] == '\\', 'Bug! %s' % char
+            return char[1]
+        return char
+
+    def visit_range(self, node, children):
+        start, dash, end = children
+        return reduce(
+            operator.or_,
+            [Symbol(chr(i)) for i in range(ord(start), ord(end) + 1)])
+
+    def visit_set_items(self, node, children):
+        items = [
+            item if isinstance(item, RegularExpression) else Symbol(item)
+            for item, in children]
+        return reduce(operator.or_, items)
+
+    def visit_positive_set(self, node, children):
+        [lbrac, inner, rbrac] = children
+        return inner
+
+    def visit_negative_set(self, node, children):
+        [lbrac, inner, rbrac] = children
+        return ~inner
+
+    def visit_repeat_fixed(self, node, children):
+        regex, lbrac, repeat_count, rbrac = children
+        repeat_count = int(repeat_count)
+        if repeat_count == 0:
+            raise ValueError('Invalid repeat %s' % node.text)
+        return regex * repeat_count
+
+    def visit_repeat_range(self, node, children):
+        regex, lbrac, min_repeat, comma, max_repeat, rbrac = children
+        min_repeat = int(min_repeat or '0')
+        max_repeat = None if not max_repeat else int(max_repeat)
+        repeated = regex * min_repeat
+        opt = [regex * repeat for repeat in range(0, max_repeat - min_repeat + 1)]
+        return repeated + opt
+
+    def visit_optional(self, node, children):
+        regex, question_mark = children
+        return regex | EPSILON
+
+    def generic_visit(self, node, children):
+        return children or node.text
