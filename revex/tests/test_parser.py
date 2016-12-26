@@ -1,67 +1,65 @@
 from itertools import islice
 import re
 
-import itertools
-
 from revex.machine import RegularLanguageMachine
 from revex.derivative import RegularExpression
 
 
 def test_string_literal_regex():
-    machine = RegularExpression.compile('abc')
-    assert machine.match('abc')
-    assert not machine.match('abcd')
-    assert not machine.match('ab')
+    regex = RegularExpression.compile('abc')
+    assert regex.match('abc')
+    assert not regex.match('abcd')
+    assert not regex.match('ab')
 
 
 def test_star():
-    machine = RegularExpression.compile('a*')
-    assert machine.match('')
-    assert machine.match('a')
-    assert machine.match('aa')
-    assert not machine.match('b')
+    regex = RegularExpression.compile('a*')
+    assert regex.match('')
+    assert regex.match('a')
+    assert regex.match('aa')
+    assert not regex.match('b')
 
 
 def test_plus():
-    machine = RegularExpression.compile('a+')
-    assert not machine.match('')
-    assert machine.match('a')
-    assert machine.match('aa')
-    assert not machine.match('b')
+    regex = RegularExpression.compile('a+')
+    assert not regex.match('')
+    assert regex.match('a')
+    assert regex.match('aa')
+    assert not regex.match('b')
 
 
 def test_union():
-    machine = RegularExpression.compile('a|b|c')
-    assert machine.match('a')
-    assert machine.match('b')
-    assert machine.match('c')
-    assert not machine.match('abc')
+    regex = RegularExpression.compile('a|b|c')
+    assert regex.match('a')
+    assert regex.match('b')
+    assert regex.match('c')
+    assert not regex.match('abc')
 
 
 def test_group():
-    machine = RegularExpression.compile('(ab)+')
-    assert machine.match('ab')
-    assert machine.match('abab')
-    assert not machine.match('aba')
+    regex = RegularExpression.compile('(ab)+')
+    assert regex.match('ab')
+    assert regex.match('abab')
+    assert not regex.match('aba')
 
 
 def test_char_range():
-    machine = RegularExpression.compile('[-a-z1-9]')
-    assert machine.match('a')
-    assert machine.match('b')
-    assert machine.match('z')
-    assert machine.match('5')
-    assert machine.match('-')
-    assert not machine.match(',')
-    assert not machine.match('0')
+    regex = RegularExpression.compile('[-a-z1-9]')
+    assert regex.match('a')
+    assert regex.match('b')
+    assert regex.match('z')
+    assert regex.match('5')
+    assert regex.match('-')
+    assert not regex.match(',')
+    assert not regex.match('0')
 
 
 def test_initial_substring():
-    machine = RegularExpression.compile('[a][b][c][d][e]')
-    assert machine.match('abcde')
+    regex = RegularExpression.compile('[a][b][c][d][e]')
+    assert regex.match('abcde')
     # This terminates the search before reaching the exit node of the graph.
     # We shouldn't match or continue trying to traverse the string.
-    assert not machine.match('abc')
+    assert not regex.match('abc')
 
 
 def test_complex_regex():
@@ -69,13 +67,13 @@ def test_complex_regex():
     # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # nopep8
     ipv4 = r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
     actual = re.compile('^%s$' % ipv4)
-    machine = RegularLanguageMachine(ipv4)
+    regex = RegularLanguageMachine(ipv4)
     assert actual.match('127.0.0.1')
-    assert machine.match('127.0.0.1')
+    assert regex.match('127.0.0.1')
     assert actual.match('250.250.250.25')
-    assert machine.match('250.250.250.25')
-    for expr in islice(machine.reverse_string_iter(), 0, 10000):
-        assert machine.match(expr)
+    assert regex.match('250.250.250.25')
+    for expr in islice(regex.reverse_string_iter(), 0, 10000):
+        assert regex.match(expr)
         assert actual.match(expr)
 
 
