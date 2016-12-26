@@ -138,7 +138,6 @@ def test_open_ended_range():
 
 def test_buggy_machine_building():
     # Fun non-deterministic bug in constructing some machines.
-    node_factory = itertools.count()
     for _ in range(8):
-        m = RegularExpression.compile('a{0,2}[a-z]', node_factory=node_factory)
+        m = RegularExpression.compile('a{0,2}[a-z]')
         assert not m.match('a' * 3 + 'q')
