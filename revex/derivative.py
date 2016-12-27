@@ -171,8 +171,6 @@ class Concatenation(RegularExpression):
             # __init__ is only being called as an artifact of our __new__
             # hacking. Nothing to do, so bail.
             return
-        if left > right:
-            left, right = right, left
         self.children = (left, right)
 
     @property
