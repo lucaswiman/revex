@@ -167,6 +167,10 @@ class Concatenation(RegularExpression):
             return super(Concatenation, cls).__new__(cls)
 
     def __init__(self, left, right):
+        if hasattr(self, 'children'):
+            # __init__ is only being called as an artifact of our __new__
+            # hacking. Nothing to do, so bail.
+            return
         if left > right:
             left, right = right, left
         self.children = (left, right)
@@ -213,6 +217,10 @@ class Intersection(RegularExpression):
             return super(Intersection, cls).__new__(cls)
 
     def __init__(self, left, right):
+        if hasattr(self, 'children'):
+            # __init__ is only being called as an artifact of our __new__
+            # hacking. Nothing to do, so bail.
+            return
         if left > right:
             left, right = right, left
         self.children = (left, right)
@@ -246,6 +254,10 @@ class Union(RegularExpression):
         return super(Union, cls).__new__(cls)
 
     def __init__(self, left, right):
+        if hasattr(self, 'children'):
+            # __init__ is only being called as an artifact of our __new__
+            # hacking. Nothing to do, so bail.
+            return
         if left > right:
             left, right = right, left
         self.children = (left, right)
@@ -284,6 +296,10 @@ class Complement(RegularExpression):
             return super(Complement, cls).__new__(cls)
 
     def __init__(self, regex):
+        if hasattr(self, 'regex'):
+            # __init__ is only being called as an artifact of our __new__
+            # hacking. Nothing to do, so bail.
+            return
         self.regex = regex
 
     @property
@@ -311,6 +327,10 @@ class Star(RegularExpression):
         return super(Star, cls).__new__(cls)
 
     def __init__(self, regex):
+        if hasattr(self, 'regex'):
+            # __init__ is only being called as an artifact of our __new__
+            # hacking. Nothing to do, so bail.
+            return
         self.regex = regex
 
     accepting = True

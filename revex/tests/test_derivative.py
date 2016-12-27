@@ -78,6 +78,13 @@ def test_equality_and_construction():
     assert a | Symbol('a') == a
 
 
+def test_accepting():
+    assert EPSILON.accepting
+    assert not EMPTY.accepting
+    assert Star(a).accepting
+    assert (Star(a) + a).derivative('a').derivative('a').accepting
+
+
 def test_parser():
     assert RegexVisitor().parse('ab|c') == (a + b) | c
     assert RegexVisitor().parse('[a-c]*') == Star(a | b | c)
