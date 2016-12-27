@@ -12,7 +12,7 @@ TYPE_TO_EXAMPLE = {
     Symbol: a,
     Concatenation: a + b,
     Intersection: (a + b) & Star(a | b),
-    Union: a | b,
+    Union: Star(a) | Star(b),
     Complement: ~a,
     Star: Star(a | b),
 }
