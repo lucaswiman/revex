@@ -463,8 +463,15 @@ class RegexVisitor(NodeVisitor):
         min_repeat = int(min_repeat or '0')
         max_repeat = None if not max_repeat else int(max_repeat)
         repeated = regex * min_repeat
-        opt = [regex * repeat for repeat in range(0, max_repeat - min_repeat + 1)]
-        return repeated + reduce(operator.or_, opt)
+        if max_repeat is None:
+            # Open ended range, like /a{4,}/
+            opt = Star(regex)
+        else:
+            opt = reduce(
+                operator.or_,
+                [regex * repeat for repeat in range(0, max_repeat - min_repeat + 1)])
+
+        return repeated + opt
 
     def visit_optional(self, node, children):
         regex, question_mark = children
