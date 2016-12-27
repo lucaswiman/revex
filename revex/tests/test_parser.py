@@ -114,9 +114,9 @@ def test_inverted_range():
 
 def test_inverted_range_and_charset():
     m = RegularExpression.compile('[^h-jab-def]')
-    for c in 'klmnopqrstuvwxyz':
+    for c in 'gklmnopqrstuvwxyz':
         assert m.match(c)
-    for c in 'abcdefghij':
+    for c in 'abcdefhij':
         assert not m.match(c)
     assert m.match('-')
     assert m.match('^')
