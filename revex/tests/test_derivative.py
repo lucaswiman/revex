@@ -1,5 +1,6 @@
 from revex.derivative import (
-    EMPTY, EPSILON, Symbol, Concatenation, Intersection, Union, Complement, Star, RegexVisitor)
+    EMPTY, EPSILON, Symbol, Concatenation, Intersection, Union, Complement, Star, RegexVisitor,
+    DOT)
 
 
 a, b, c = map(Symbol, 'abc')
@@ -91,5 +92,5 @@ def test_parser():
     assert RegexVisitor().parse('ab|c') == (a + b) | c
     assert RegexVisitor().parse('[a-c]*') == Star(a | b | c)
     assert RegexVisitor().parse('[abc]') == a | b | c
-    assert RegexVisitor().parse('[^abc]') == ~a & ~b & ~c
-    assert RegexVisitor().parse('[^a-c]') == ~a & ~b & ~c
+    assert RegexVisitor().parse('[^abc]') == DOT & ~a & ~b & ~c
+    assert RegexVisitor().parse('[^a-c]') == DOT & ~a & ~b & ~c

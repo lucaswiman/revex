@@ -475,7 +475,7 @@ class RegexVisitor(NodeVisitor):
 
     def visit_negative_set(self, node, children):
         [lbrac, inner, rbrac] = children
-        return ~inner
+        return DOT & ~inner
 
     def visit_repeat_fixed(self, node, children):
         regex, lbrac, repeat_count, rbrac = children
