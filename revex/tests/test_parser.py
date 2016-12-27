@@ -134,8 +134,9 @@ def test_open_ended_range():
         assert m2.match('a' * i)
 
 
-def test_buggy_machine_building():
-    # Fun non-deterministic bug in constructing some machines.
-    for _ in range(8):
-        m = RegularExpression.compile('a{0,2}[a-z]')
-        assert not m.match('a' * 3 + 'q')
+def test_repeat():
+    regex = RegularExpression.compile('a{0,2}[a-z]')
+    assert regex.match('q')
+    assert regex.match('a' * 1 + 'q')
+    assert regex.match('a' * 2 + 'q')
+    assert not regex.match('a' * 3 + 'q')
