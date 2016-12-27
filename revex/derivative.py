@@ -170,31 +170,6 @@ DOT = _Dot()
 
 
 @six.python_2_unicode_compatible
-class Symbol(RegularExpression):
-    def __init__(self, char):
-        self.char = char
-
-    accepting = False
-
-    @property
-    def chars(self):
-        return {self.char}
-
-    def derivative(self, char):
-        return EPSILON if char == self.char else EMPTY
-
-    @property
-    def identity_tuple(self):
-        return (type(self).__name__, self.char)
-
-    def __str__(self):
-        return self.char
-
-    def __repr__(self):
-        return 'Symbol(%r)' % self.char
-
-
-@six.python_2_unicode_compatible
 class Concatenation(RegularExpression):
     def __new__(cls, left, right):
         if left is EMPTY or right is EMPTY:
@@ -285,9 +260,11 @@ class Intersection(RegularExpression):
         return '&'.join(map(parenthesize_repr, self.children))
 
 
+@six.python_2_unicode_compatible
 class CharSet(RegularExpression):
     def __init__(self, chars, negated=False):
         self.chars = frozenset(chars)
+        self.char_tuple = tuple(sorted(self.chars))
         self.negated = negated
 
     accepting = False
@@ -299,11 +276,21 @@ class CharSet(RegularExpression):
         else:
             return EPSILON if char in self.chars else EMPTY
 
+    @property
+    def identity_tuple(self):
+        return (CharSet.__name__, self.negated, self.char_tuple)
+
     def __str__(self):
-        return '[%s%s]' % ('^' if self.negated else '', ''.join(sorted(self.chars)))
+        if len(self.chars) == 1 and not self.negated:
+            return str(self.char_tuple[0])
+        return '[%s%s]' % ('^' if self.negated else '', ''.join(self.char_tuple))
 
     def __repr__(self):
         return 'CharSet(%r, negated=%r)' % (tuple(sorted(self.chars)), self.negated)
+
+
+def Symbol(char):
+    return CharSet([char])
 
 
 class Union(RegularExpression):
@@ -360,6 +347,8 @@ class Complement(RegularExpression):
             return reduce(operator.and_, (~child for child in regex.children))
         elif isinstance(regex, Complement):
             return regex.regex
+        elif isinstance(regex, CharSet):
+            return CharSet(regex.chars, negated=not regex.negated)
         else:
             return super(Complement, cls).__new__(cls)
 
