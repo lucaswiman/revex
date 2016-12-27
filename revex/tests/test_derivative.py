@@ -18,6 +18,10 @@ TYPE_TO_EXAMPLE = {
 }
 
 
+def compile(regex):
+    return RegexVisitor().parse(regex)
+
+
 def test_type_setup():
     for k, v in TYPE_TO_EXAMPLE.items():
         assert type(v) is k
@@ -60,6 +64,7 @@ def test_equality_and_construction():
     assert (a & b) is EMPTY
     assert a + EPSILON == a
     assert EPSILON + a == a
+    assert EPSILON + EPSILON == EPSILON
     assert ((a | Star(b)) + (b | Star(a))).accepting
 
     assert (Star(a) + b).derivative('b') == EPSILON
@@ -80,6 +85,11 @@ def test_equality_and_construction():
     assert a & Symbol('a') == a
     assert a | Symbol('a') == a
 
+    assert compile(r'[^ab]') & compile(r'[bc]') == compile('c')
+    assert compile(r'[^a]') & compile(r'[a]') == EMPTY
+    assert compile(r'[^ab]') & compile(r'[b]') == EMPTY
+    assert compile(r'[^ab]') & compile(r'[^bc]') == compile('[^abc]')
+
 
 def test_accepting():
     assert EPSILON.accepting
@@ -88,9 +98,22 @@ def test_accepting():
     assert (Star(a) + a).derivative('a').derivative('a').accepting
 
 
+def test_str_repr():
+    assert str(CharSet('abc', negated=True)) == '[^abc]'
+    assert str(CharSet('abc', negated=False)) == '[abc]'
+    assert str(compile('[acb]*')) == '[abc]*'
+
+    assert str(compile('.*')) == '.*'
+    assert repr(compile('.*')) == 'Star(DOT)'
+    assert str(compile('..')) == '..'
+    assert repr(compile('..')) == 'DOT+DOT'
+
+
 def test_parser():
-    assert RegexVisitor().parse('ab|c') == (a + b) | c
-    assert RegexVisitor().parse('[a-c]*') == Star(a | b | c)
-    assert RegexVisitor().parse('[abc]') == a | b | c
-    assert RegexVisitor().parse('[^abc]') == CharSet('abc', negated=True)
-    assert RegexVisitor().parse('[^a-c]') == CharSet('abc', negated=True)
+    assert compile('ab|c') == (a + b) | c
+    assert compile('[a-c]*') == Star(a | b | c)
+    assert compile('[abc]') == a | b | c
+    assert compile('[^abc]') == CharSet('abc', negated=True)
+    assert compile('[^a-c]') == CharSet('abc', negated=True)
+    assert compile(r'\.') == CharSet('.', negated=False)
+    assert compile(r'[.]') == CharSet('.', negated=False)

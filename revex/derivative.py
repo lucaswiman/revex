@@ -84,7 +84,7 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
         return not (self == other)
 
     def __lt__(self, other):
-        if not isinstance(other, RegularExpression):
+        if not isinstance(other, RegularExpression):  # pragma: no cover
             raise TypeError(type(other))
         return self.identity_tuple < other.identity_tuple
 
@@ -421,7 +421,7 @@ class Star(RegularExpression):
         return (type(self).__name__, self.regex)
 
     def __str__(self):
-        return '(%s)*' % self.regex
+        return '%s*' % parenthesize_str(self.regex)
 
     def __repr__(self):
         return 'Star(%r)' % self.regex
@@ -495,7 +495,7 @@ class RegexVisitor(NodeVisitor):
 
     def visit_escaped_metachar(self, node, children):
         slash, char = children
-        return Symbol(char)
+        return char
 
     def visit_any(self, node, children):
         return DOT
