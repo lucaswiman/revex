@@ -1,6 +1,6 @@
 from revex.derivative import (
     EMPTY, EPSILON, Symbol, Concatenation, Intersection, Union, Complement, Star, RegexVisitor,
-    DOT)
+    CharSet)
 
 
 a, b, c = map(Symbol, 'abc')
@@ -9,11 +9,11 @@ TYPE_TO_EXAMPLE = {
     # The __new__ hacking (automatic simplification) makes it slightly
     # difficult to construct examples of the different types of objects, here
     # we construct them, then verify the types to set up the tests.
-    Symbol: a,
+    CharSet: a | b,
     Concatenation: a + b,
     Intersection: (a + b) & Star(a | b),
     Union: Star(a) | Star(b),
-    Complement: ~a,
+    Complement: ~(Star(a)),
     Star: Star(a | b),
 }
 
@@ -92,5 +92,5 @@ def test_parser():
     assert RegexVisitor().parse('ab|c') == (a + b) | c
     assert RegexVisitor().parse('[a-c]*') == Star(a | b | c)
     assert RegexVisitor().parse('[abc]') == a | b | c
-    assert RegexVisitor().parse('[^abc]') == DOT & ~a & ~b & ~c
-    assert RegexVisitor().parse('[^a-c]') == DOT & ~a & ~b & ~c
+    assert RegexVisitor().parse('[^abc]') == CharSet('abc', negated=True)
+    assert RegexVisitor().parse('[^a-c]') == CharSet('abc', negated=True)

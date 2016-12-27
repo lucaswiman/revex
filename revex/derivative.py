@@ -171,22 +171,18 @@ DOT = _Dot()
 
 @six.python_2_unicode_compatible
 class Concatenation(RegularExpression):
-    def __new__(cls, left, right):
-        if left is EMPTY or right is EMPTY:
+    def __new__(cls, *children):
+        if EMPTY in children:
             return EMPTY
-        elif right is EPSILON:
-            return left
-        elif left is EPSILON:
-            return right
+        children = tuple(child for child in children if child is not EPSILON)
+        if not children:
+            return EPSILON
+        elif len(children) == 1:
+            return children[0]
         else:
-            return super(Concatenation, cls).__new__(cls)
-
-    def __init__(self, left, right):
-        if hasattr(self, 'children'):
-            # __init__ is only being called as an artifact of our __new__
-            # hacking. Nothing to do, so bail.
-            return
-        self.children = (left, right)
+            instance = super(Concatenation, cls).__new__(cls)
+            instance.children = children
+            return instance
 
     is_atomic = False
 
@@ -214,31 +210,62 @@ class Concatenation(RegularExpression):
 
 
 class Intersection(RegularExpression):
-    def __new__(cls, left, right):
-        if EMPTY == left or EMPTY == right:
+    def __new__(cls, *children):
+        children = set(children)
+        if EMPTY in children:
             return EMPTY
-        elif EPSILON == left or EPSILON == right:
-            if left.accepting and right.accepting:
+        elif EPSILON in children:
+            if all(child.accepting for child in children):
                 return EPSILON
             else:
                 return EMPTY
-        elif left == right:
-            return left
-        elif isinstance(left, Symbol):
-            return left if right.derivative(left.char).accepting else EMPTY
-        elif isinstance(right, Symbol):
-            return right if left.derivative(right.char).accepting else EMPTY
-        else:
-            return super(Intersection, cls).__new__(cls)
 
-    def __init__(self, left, right):
-        if hasattr(self, 'children'):
-            # __init__ is only being called as an artifact of our __new__
-            # hacking. Nothing to do, so bail.
-            return
-        if left > right:
-            left, right = right, left
-        self.children = (left, right)
+        # Normalize all the charsets and negated charsets into (at most) two.
+        charsets = {c for c in children if isinstance(c, CharSet) and not c.negated}
+        negated_charsets = {c for c in children if isinstance(c, CharSet) and c.negated}
+        children  = (children - charsets) - negated_charsets
+        if charsets:
+            charset = CharSet(reduce(operator.and_, (c.chars for c in charsets)))
+        else:
+            charset = None
+        if negated_charsets:
+            negated_charset = CharSet(
+                reduce(operator.or_, (c.chars for c in negated_charsets)),
+                negated=True)
+        else:
+            negated_charset = None
+
+        if charset and negated_charset:
+            # If we have a charset and a negated charset, then compute their
+            # intersection.
+            chars = charset.chars - negated_charset.chars
+            if not chars:  # The intersection is empty, so simplify to that.
+                return EMPTY
+            else:
+                charset = CharSet(chars)
+                negated_charset = None
+
+        if charset:
+            # Now restrict chars down to those which all the other conjuncts can
+            # accept. These are exactly the chars recognized by this regex, so
+            # just return the charset.
+            chars = {
+                char for char in charset.chars
+                if all(child.derivative(char).accepting for child in children)
+            }
+            if not chars:
+                return EMPTY
+            else:
+                return CharSet(chars)
+        elif negated_charset:
+            children.add(charset or negated_charset)
+
+        if len(children) == 1:
+            return children.pop()
+        else:
+            instance = super(Intersection, cls).__new__(cls)
+            instance.children = frozenset(children)
+            return instance
 
     is_atomic = False
 
@@ -262,10 +289,12 @@ class Intersection(RegularExpression):
 
 @six.python_2_unicode_compatible
 class CharSet(RegularExpression):
-    def __init__(self, chars, negated=False):
-        self.chars = frozenset(chars)
-        self.char_tuple = tuple(sorted(self.chars))
-        self.negated = negated
+    def __new__(cls, chars, negated=False):
+        instance = super(CharSet, cls).__new__(cls)
+        instance.chars = frozenset(chars)
+        instance.char_tuple = tuple(sorted(instance.chars))
+        instance.negated = negated
+        return instance
 
     accepting = False
     is_atomic = True
@@ -303,7 +332,7 @@ class Union(RegularExpression):
 
         char_literals = {
             child for child in children
-            if (isinstance(child, CharSet) and not child.negated) or isinstance(child, Symbol)}
+            if (isinstance(child, CharSet) and not child.negated)}
         if char_literals:
             chars = reduce(operator.or_, (literal.chars for literal in char_literals))
             children = children - char_literals
@@ -347,17 +376,10 @@ class Complement(RegularExpression):
             return reduce(operator.and_, (~child for child in regex.children))
         elif isinstance(regex, Complement):
             return regex.regex
-        elif isinstance(regex, CharSet):
-            return CharSet(regex.chars, negated=not regex.negated)
         else:
-            return super(Complement, cls).__new__(cls)
-
-    def __init__(self, regex):
-        if hasattr(self, 'regex'):
-            # __init__ is only being called as an artifact of our __new__
-            # hacking. Nothing to do, so bail.
-            return
-        self.regex = regex
+            instance = super(Complement, cls).__new__(cls)
+            instance.regex = regex
+            return instance
 
     @property
     def is_atomic(self):
@@ -385,14 +407,9 @@ class Star(RegularExpression):
     def __new__(cls, regex):
         if regex is EMPTY or regex is EPSILON:
             return regex
-        return super(Star, cls).__new__(cls)
-
-    def __init__(self, regex):
-        if hasattr(self, 'regex'):
-            # __init__ is only being called as an artifact of our __new__
-            # hacking. Nothing to do, so bail.
-            return
-        self.regex = regex
+        instance = super(Star, cls).__new__(cls)
+        instance.regex = regex
+        return instance
 
     accepting = True
 
@@ -512,7 +529,8 @@ class RegexVisitor(NodeVisitor):
 
     def visit_negative_set(self, node, children):
         [lbrac, inner, rbrac] = children
-        return DOT & ~inner
+        assert isinstance(inner, CharSet) and inner.negated is False
+        return CharSet(inner.chars, negated=True)
 
     def visit_repeat_fixed(self, node, children):
         regex, lbrac, repeat_count, rbrac = children
