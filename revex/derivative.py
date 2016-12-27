@@ -134,6 +134,32 @@ EPSILON = _Epsilon()
 
 
 @six.python_2_unicode_compatible
+class _Dot(RegularExpression):
+    """
+    Special expression for matching any character.
+    """
+    def __new__(cls):
+        try:
+            return DOT
+        except NameError:
+            return super(_Dot, cls).__new__(cls)
+
+    accepting = False
+
+    def derivative(self, char):
+        return EPSILON
+
+    def __str__(self):
+        return '.'
+
+    def __repr__(self):
+        return 'DOT'
+
+
+DOT = _Dot()
+
+
+@six.python_2_unicode_compatible
 class Symbol(RegularExpression):
     def __init__(self, char):
         self.char = char
@@ -418,7 +444,7 @@ class RegexVisitor(NodeVisitor):
         return Symbol(char)
 
     def visit_any(self, node, children):
-        raise NotImplementedError()
+        return DOT
 
     def visit_char(self, node, children):
         child, = children
