@@ -107,6 +107,7 @@ def test_inverted_charset():
 def test_inverted_range():
     m = RegularExpression.compile('[^a-c]')
     assert m.match('d')
+    assert not m.match('dlaskdfmlksadmfl')
     assert not m.match('a')
     assert not m.match('b')
     assert not m.match('c')
