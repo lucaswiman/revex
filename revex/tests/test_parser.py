@@ -64,7 +64,7 @@ def test_initial_substring():
 
 def test_complex_regex():
     # regex to recognize IPv4 addresses. From
-    # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # nopep8
+    # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # noqa
     ipv4 = r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
     actual = re.compile('^%s$' % ipv4)
     regex = RegularLanguageMachine(ipv4)

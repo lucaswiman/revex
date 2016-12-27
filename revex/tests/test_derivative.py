@@ -16,9 +16,11 @@ TYPE_TO_EXAMPLE = {
     Star: Star(a | b),
 }
 
+
 def test_type_setup():
     for k, v in TYPE_TO_EXAMPLE.items():
         assert type(v) is k
+
 
 def test_complementation():
     assert (~(~a).derivative('b')) == EMPTY
