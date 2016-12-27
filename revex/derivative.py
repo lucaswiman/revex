@@ -30,6 +30,8 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
         - Concatenation:   R1 + R2
         - Star:            Star(R)
     """
+    is_atomic = True
+
     @classmethod
     def compile(self, regex):
         return RegexVisitor().parse(regex)
@@ -85,6 +87,14 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
         if not isinstance(other, RegularExpression):
             raise TypeError(type(other))
         return self.identity_tuple < other.identity_tuple
+
+
+def parenthesize_str(regex):
+    return str(regex) if regex.is_atomic else '(%s)' % regex
+
+
+def parenthesize_repr(regex):
+    return repr(regex) if regex.is_atomic else '(%r)' % regex
 
 
 @six.python_2_unicode_compatible
@@ -166,6 +176,10 @@ class Symbol(RegularExpression):
 
     accepting = False
 
+    @property
+    def chars(self):
+        return {self.char}
+
     def derivative(self, char):
         return EPSILON if char == self.char else EMPTY
 
@@ -199,6 +213,8 @@ class Concatenation(RegularExpression):
             return
         self.children = (left, right)
 
+    is_atomic = False
+
     @property
     def accepting(self):
         return all(child.accepting for child in self.children)
@@ -216,10 +232,10 @@ class Concatenation(RegularExpression):
         return (type(self).__name__, self.children)
 
     def __str__(self):
-        return '%s%s' % self.children
+        return ''.join(map(parenthesize_str, self.children))
 
     def __repr__(self):
-        return '%r+%r' % self.children
+        return '+'.join(map(parenthesize_repr, self.children))
 
 
 class Intersection(RegularExpression):
@@ -249,6 +265,8 @@ class Intersection(RegularExpression):
             left, right = right, left
         self.children = (left, right)
 
+    is_atomic = False
+
     @property
     def identity_tuple(self):
         return (type(self).__name__, self.children)
@@ -261,30 +279,56 @@ class Intersection(RegularExpression):
         return reduce(operator.and_, (child.derivative(char) for child in self.children))
 
     def __str__(self):
-        return '(%s)&(%s)' % self.children
+        return '∩'.join(map(parenthesize_str, self.children))
 
     def __repr__(self):
-        return '(%r)&(%r)' % self.children
+        return '&'.join(map(parenthesize_repr, self.children))
+
+
+class CharSet(RegularExpression):
+    def __init__(self, chars, negated=False):
+        self.chars = frozenset(chars)
+        self.negated = negated
+
+    accepting = False
+    is_atomic = True
+
+    def derivative(self, char):
+        if self.negated:
+            return EMPTY if char in self.chars else EPSILON
+        else:
+            return EPSILON if char in self.chars else EMPTY
+
+    def __str__(self):
+        return '[%s%s]' % ('^' if self.negated else '', ''.join(sorted(self.chars)))
+
+    def __repr__(self):
+        return 'CharSet(%r, negated=%r)' % (tuple(sorted(self.chars)), self.negated)
 
 
 class Union(RegularExpression):
-    def __new__(cls, left, right):
-        if left is EMPTY:
-            return right
-        elif right is EMPTY:
-            return left
-        elif left == right:
-            return left
-        return super(Union, cls).__new__(cls)
+    def __new__(cls, *children):
+        children = set(children)
+        if children == {EMPTY}:
+            return EMPTY
+        elif EMPTY in children:
+            children.remove(EMPTY)
 
-    def __init__(self, left, right):
-        if hasattr(self, 'children'):
-            # __init__ is only being called as an artifact of our __new__
-            # hacking. Nothing to do, so bail.
-            return
-        if left > right:
-            left, right = right, left
-        self.children = (left, right)
+        char_literals = {
+            child for child in children
+            if (isinstance(child, CharSet) and not child.negated) or isinstance(child, Symbol)}
+        if char_literals:
+            chars = reduce(operator.or_, (literal.chars for literal in char_literals))
+            children = children - char_literals
+            children.add(CharSet(chars))
+        if len(children) == 1:
+            return children.pop()
+
+        instance = super(Union, cls).__new__(cls)
+        instance.children = frozenset(children)
+        return instance
+
+    is_atomic = False
 
     @property
     def accepting(self):
@@ -298,10 +342,10 @@ class Union(RegularExpression):
         return (type(self).__name__, self.children)
 
     def __str__(self):
-        return '(%s)|(%s)' % self.children
+        return '|'.join(map(parenthesize_str, self.children))
 
     def __repr__(self):
-        return '(%r)|(%r)' % self.children
+        return '|'.join(map(parenthesize_repr, self.children))
 
 
 class Complement(RegularExpression):
@@ -327,6 +371,10 @@ class Complement(RegularExpression):
         self.regex = regex
 
     @property
+    def is_atomic(self):
+        return self.regex.is_atomic
+
+    @property
     def accepting(self):
         return not self.regex.accepting
 
@@ -338,10 +386,10 @@ class Complement(RegularExpression):
         return (type(self).__name__, self.regex)
 
     def __str__(self):
-        return '~(%s)' % self.regex
+        return '~%s' % parenthesize_str(self.regex)
 
     def __repr__(self):
-        return '~(%r)' % self.regex
+        return '~%s' % parenthesize_repr(self.regex)
 
 
 class Star(RegularExpression):
