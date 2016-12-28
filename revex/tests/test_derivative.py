@@ -117,3 +117,4 @@ def test_parser():
     assert compile('[^a-c]') == CharSet('abc', negated=True)
     assert compile(r'\.') == CharSet('.', negated=False)
     assert compile(r'[.]') == CharSet('.', negated=False)
+    assert compile(r'[\.]') == CharSet('.', negated=False)

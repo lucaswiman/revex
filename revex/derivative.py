@@ -446,8 +446,8 @@ REGEX = Grammar(r'''
     non_metachar = ~"[^.$^\\*+\[\]()|{}?]"
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
-    set_char = ~"[^\\]]|\\\\]"
-    set_items = (range / ~"[^\\]]")+
+    set_char = ~"[^\\]]"
+    set_items = (range / escaped_metachar / ~"[^\\]]" )+
     range = set_char "-" set_char
 ''')
 
@@ -506,9 +506,6 @@ class RegexVisitor(NodeVisitor):
 
     def visit_set_char(self, node, children):
         char = node.text
-        if len(char) == 2:
-            assert char[0] == '\\', 'Bug! %s' % char
-            return char[1]
         return char
 
     def visit_range(self, node, children):
