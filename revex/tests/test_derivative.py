@@ -118,3 +118,4 @@ def test_parser():
     assert compile(r'\.') == CharSet('.', negated=False)
     assert compile(r'[.]') == CharSet('.', negated=False)
     assert compile(r'[\.]') == CharSet('.', negated=False)
+    assert compile(r'a?') == a | EPSILON

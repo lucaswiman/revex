@@ -141,3 +141,5 @@ def test_repeat():
     assert regex.match('a' * 1 + 'q')
     assert regex.match('a' * 2 + 'q')
     assert not regex.match('a' * 3 + 'q')
+
+    assert RegularExpression.compile('a{3}') == RegularExpression.compile('aaa')
