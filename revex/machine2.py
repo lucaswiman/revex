@@ -98,3 +98,52 @@ class RegexDFA(DFA):
                         self.add_state(derivative, derivative.accepting)
                     self.add_transition(node, derivative, char)
             nodes = next_nodes
+
+
+def minimize_dfa(dfa):
+    """
+    Return a minimized DFA, as constructed using the Myhill-Nerode theorem
+    here: https://cse.sc.edu/~fenner/csce551/minimization.pdf
+
+    See also http://www8.cs.umu.se/kurser/TDBC92/VT06/final/1.pdf for more background,
+    and https://www.tutorialspoint.com/automata_theory/dfa_minimization.htm for diagrams.
+
+    """
+    raise NotImplementedError  # TODO: test & work out bugs.
+    states = list(dfa.nodes())
+    F = {state for state in states if dfa.node[state]['accepting']}
+    marked = set()
+    unmarked = set()
+
+    # Sentinel to hold non-terminating "hold" state. By convention a lack an
+    # out-edge means "does not match".
+    TERMINAL = object()
+    # states.append(TERMINAL)
+
+    def delta(state, char):
+        if state is TERMINAL:
+            return TERMINAL
+        return dfa.delta[state].get(char, TERMINAL)
+
+    for i, p in enumerate(states):
+        for q in states[i+1:]:
+            if (p in F) != (q in F):
+                marked.add((p, q))
+            else:
+                unmarked.add((p, q))
+
+    update = True
+    while update:
+        update = False
+        for p, q in list(unmarked):
+            for a in dfa.alphabet:
+                if (delta(p, a), delta(q, a)) in marked:
+                    unmarked.remove((p, q))
+                    marked.add((p, q))
+                    update = True
+                    break
+
+    def is_equivalent(p, q, marked=frozenset(marked)):
+        return (p, q) in unmarked
+
+    return is_equivalent, unmarked
