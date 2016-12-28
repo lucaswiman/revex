@@ -95,6 +95,14 @@ def test_concatenation_is_associative():
     assert (a + b) + c == a + (b + c)
 
 
+def test_union_is_associative():
+    assert (Star(a) | Star(b)) | c == Star(a) | (Star(b) | c)
+
+
+def test_intersection_is_associative():
+    assert (Star(a | b | c) & Star(b | c)) & Star(a | b) == Star(a | b | c) & (Star(b | c) & Star(a | b))
+
+
 def test_accepting():
     assert EPSILON.accepting
     assert not EMPTY.accepting

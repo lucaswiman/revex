@@ -235,7 +235,13 @@ class Concatenation(RegularExpression):
 
 class Intersection(RegularExpression):
     def __new__(cls, *children):
-        children = set(children)
+        flattened_children = set()
+        for child in children:
+            if isinstance(child, Intersection):
+                flattened_children |= child.children
+            else:
+                flattened_children.add(child)
+        children = flattened_children
         if EMPTY in children:
             return EMPTY
         elif EPSILON in children:
@@ -348,7 +354,13 @@ def Symbol(char):
 
 class Union(RegularExpression):
     def __new__(cls, *children):
-        children = set(children)
+        flattened_children = set()
+        for child in children:
+            if isinstance(child, Union):
+                flattened_children |= child.children
+            else:
+                flattened_children.add(child)
+        children = flattened_children
         if children == {EMPTY}:
             return EMPTY
         elif EMPTY in children:
