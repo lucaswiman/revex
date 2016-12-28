@@ -74,3 +74,18 @@ def test_random_walk_matches_regex(regex):
         rand_string = machine.reverse_random_string()
         assert actual.match(rand_string), '%s should match %s' % (regex, rand_string)
         assert machine.match(rand_string), '%s should match %s' % (regex, rand_string)
+
+
+def test_complex_regex():
+    # regex to recognize IPv4 addresses. From
+    # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # noqa
+    ipv4 = r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+    actual = re.compile('^%s$' % ipv4)
+    regex = RegularLanguageMachine(ipv4)
+    assert actual.match('127.0.0.1')
+    assert regex.match('127.0.0.1')
+    assert actual.match('250.250.250.25')
+    assert regex.match('250.250.250.25')
+    for expr in islice(regex.reverse_string_iter(), 0, 10000):
+        assert regex.match(expr)
+        assert actual.match(expr)
