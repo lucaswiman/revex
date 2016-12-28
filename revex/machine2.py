@@ -56,6 +56,7 @@ class DFA(MultiDiGraph):
                     self.add_edge(
                         node, derivative,
                         attr_dict={
+                            'transition': char,
                             'label': char,
                         }
                     )
