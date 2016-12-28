@@ -3,7 +3,7 @@ from itertools import islice
 import pytest
 import re
 
-from revex.machine import RegularLanguageMachine, Epsilon, LiteralMatcher
+from revex.machine_old import RegularLanguageMachine, Epsilon, LiteralMatcher
 
 
 def add_literals(machine, literals):
