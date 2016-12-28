@@ -210,7 +210,7 @@ class Concatenation(RegularExpression):
 
         For example, consider the regex:
             a?[ab]?[abc]ad
-        Its derivative with respect to a is:
+        Its derivative with respect to "a" is:
             ([ab]?[abc]ad)|([abc]ad)|ad
 
         * The first disjunct is where the character is consumed by the first child.
