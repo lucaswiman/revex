@@ -12,6 +12,8 @@ class DFA(MultiDiGraph):
         super(DFA, self).__init__()
         self.start = start
         self.add_state(start, start_accepting)
+        self.transitions = {}  # maintain an index on edges for efficiency
+        self.alphabet = alphabet
 
     def add_state(self, state, accepting):
         return self.add_node(
@@ -26,6 +28,7 @@ class DFA(MultiDiGraph):
     def add_transition(self, from_state, to_state, char):
         if not (self.has_node(from_state) and self.has_node(to_state)):
             raise ValueError('States must be added prior to transitions.')
+        self.transitions[(from_state, char)] = to_state
         return self.add_edge(
             from_state, to_state,
             attr_dict={
@@ -33,6 +36,15 @@ class DFA(MultiDiGraph):
                 'label': char,
             }
         )
+
+    def matches(self, string):
+        node = self.start
+        for char in string:
+            try:
+                node = self.transitions[(node, char)]
+            except KeyError:
+                return False
+        return self.node[node]['accepting']
 
     def _draw(self):
         """
