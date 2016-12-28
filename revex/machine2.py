@@ -8,6 +8,46 @@ DEFAULT_ALPHABET = ''.join(map(chr, range(0, 128)))
 
 
 class DFA(MultiDiGraph):
+    def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
+        super(DFA, self).__init__()
+        self.start = start
+        self.add_state(start, start_accepting)
+
+    def add_state(self, state, accepting):
+        return self.add_node(
+            state,
+            attr_dict={
+                'label': str(state),
+                'accepting': accepting,
+            },
+            color='green' if accepting else 'black',
+        )
+
+    def add_transition(self, from_state, to_state, char):
+        if not (self.has_node(from_state) and self.has_node(to_state)):
+            raise ValueError('States must be added prior to transitions.')
+        return self.add_edge(
+            from_state, to_state,
+            attr_dict={
+                'transition': char,
+                'label': char,
+            }
+        )
+
+    def _draw(self):
+        """
+        Hack to draw the graph and open it in preview. Sorta OS X only-ish.
+        """
+        from networkx.drawing.nx_agraph import write_dot
+        import os
+
+        write_dot(self, '/tmp/foo_%s.dot' % id(self))
+        os.system(
+            'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(self)))
+        os.system('open /tmp/foo_{0}.png'.format(id(self)))
+
+
+class RegexDFA(DFA):
     def __init__(self, regex, alphabet=DEFAULT_ALPHABET):
         """
         Builds a DFA from a revex.derivative.RegularExpression object.
@@ -23,15 +63,10 @@ class DFA(MultiDiGraph):
               is labeled with `regex`.
             - Edges' `label` attribute stores the transition character.
         """
-        super(DFA, self).__init__()
-        self.start = regex
-        self.add_node(
-            regex,
-            attr_dict={
-                'label': str(regex),
-                'accepting': regex.accepting,
-            },
-            color='green' if regex.accepting else 'black',
+        super(RegexDFA, self).__init__(
+            start=regex,
+            start_accepting=regex.accepting,
+            alphabet=alphabet,
         )
         nodes = {regex}
         while nodes:
@@ -43,33 +78,6 @@ class DFA(MultiDiGraph):
                         continue
                     if not self.has_node(derivative):
                         next_nodes.add(derivative)
-                    else:
-                        accepting = derivative.accepting
-                        self.add_node(
-                            derivative,
-                            attr_dict={
-                                'accepting': accepting,
-                                'label': str(derivative),
-                            },
-                            color='green' if accepting else 'black',
-                        )
-                    self.add_edge(
-                        node, derivative,
-                        attr_dict={
-                            'transition': char,
-                            'label': char,
-                        }
-                    )
+                        self.add_state(derivative, derivative.accepting)
+                    self.add_transition(node, derivative, char)
             nodes = next_nodes
-
-    def _draw(self):
-        """
-        Hack to draw the graph and open it in preview. Sorta OS X only-ish.
-        """
-        from networkx.drawing.nx_agraph import write_dot
-        import os
-
-        write_dot(self, '/tmp/foo_%s.dot' % id(self))
-        os.system(
-            'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(self)))
-        os.system('open /tmp/foo_{0}.png'.format(id(self)))
