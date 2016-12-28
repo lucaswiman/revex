@@ -238,7 +238,7 @@ class Intersection(RegularExpression):
         flattened_children = set()
         for child in children:
             if isinstance(child, Intersection):
-                flattened_children |= child.children
+                flattened_children |= set(child.children)
             else:
                 flattened_children.add(child)
         children = flattened_children
@@ -255,12 +255,12 @@ class Intersection(RegularExpression):
         negated_charsets = {c for c in children if isinstance(c, CharSet) and c.negated}
         children  = (children - charsets) - negated_charsets
         if charsets:
-            charset = CharSet(reduce(operator.and_, (c.chars for c in charsets)))
+            charset = CharSet(reduce(operator.and_, (set(c.chars) for c in charsets)))
         else:
             charset = None
         if negated_charsets:
             negated_charset = CharSet(
-                reduce(operator.or_, (c.chars for c in negated_charsets)),
+                reduce(operator.or_, (set(c.chars) for c in negated_charsets)),
                 negated=True)
         else:
             negated_charset = None
@@ -268,7 +268,7 @@ class Intersection(RegularExpression):
         if charset and negated_charset:
             # If we have a charset and a negated charset, then compute their
             # intersection.
-            chars = charset.chars - negated_charset.chars
+            chars = set(charset.chars) - set(negated_charset.chars)
             if not chars:  # The intersection is empty, so simplify to that.
                 return EMPTY
             else:
@@ -294,7 +294,7 @@ class Intersection(RegularExpression):
             return children.pop()
         else:
             instance = super(Intersection, cls).__new__(cls)
-            instance.children = frozenset(children)
+            instance.children = tuple(sorted(children))
             return instance
 
     is_atomic = False
@@ -321,8 +321,7 @@ class Intersection(RegularExpression):
 class CharSet(RegularExpression):
     def __new__(cls, chars, negated=False):
         instance = super(CharSet, cls).__new__(cls)
-        instance.chars = frozenset(chars)
-        instance.char_tuple = tuple(sorted(instance.chars))
+        instance.chars = tuple(sorted(chars))
         instance.negated = negated
         return instance
 
@@ -337,12 +336,12 @@ class CharSet(RegularExpression):
 
     @property
     def identity_tuple(self):
-        return (CharSet.__name__, self.negated, self.char_tuple)
+        return (CharSet.__name__, self.negated, self.chars)
 
     def __str__(self):
         if len(self.chars) == 1 and not self.negated:
-            return str(self.char_tuple[0])
-        return '[%s%s]' % ('^' if self.negated else '', ''.join(self.char_tuple))
+            return str(self.chars[0])
+        return '[%s%s]' % ('^' if self.negated else '', ''.join(self.chars))
 
     def __repr__(self):
         return 'CharSet(%r, negated=%r)' % (tuple(sorted(self.chars)), self.negated)
@@ -357,7 +356,7 @@ class Union(RegularExpression):
         flattened_children = set()
         for child in children:
             if isinstance(child, Union):
-                flattened_children |= child.children
+                flattened_children |= set(child.children)
             else:
                 flattened_children.add(child)
         children = flattened_children
@@ -370,14 +369,14 @@ class Union(RegularExpression):
             child for child in children
             if (isinstance(child, CharSet) and not child.negated)}
         if char_literals:
-            chars = reduce(operator.or_, (literal.chars for literal in char_literals))
+            chars = {char for literal in char_literals for char in literal.chars}
             children = children - char_literals
             children.add(CharSet(chars))
         if len(children) == 1:
             return children.pop()
 
         instance = super(Union, cls).__new__(cls)
-        instance.children = frozenset(children)
+        instance.children = tuple(sorted(children))
         return instance
 
     is_atomic = False
