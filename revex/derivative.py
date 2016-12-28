@@ -16,6 +16,8 @@ from functools import reduce, total_ordering
 import six
 from parsimonious import NodeVisitor, Grammar
 
+from .machine import RegexDFA, DEFAULT_ALPHABET
+
 
 @total_ordering
 class RegularExpression(six.with_metaclass(abc.ABCMeta)):
@@ -35,6 +37,9 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     @classmethod
     def compile(self, regex):
         return RegexVisitor().parse(regex)
+
+    def as_dfa(self, alphabet=DEFAULT_ALPHABET):
+        return RegexDFA(self, alphabet=alphabet)
 
     def __add__(self, other):
         return Concatenation(self, other)

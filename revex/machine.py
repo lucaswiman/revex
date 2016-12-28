@@ -1,12 +1,8 @@
 from collections import defaultdict
 
-import six
 from networkx import MultiDiGraph
 
-
 # Characters common to ASCII, UTF-8 encoded text and LATIN-1 encoded text.
-from revex.derivative import EMPTY
-
 DEFAULT_ALPHABET = ''.join(map(chr, range(0, 128)))
 
 
