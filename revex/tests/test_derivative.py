@@ -91,6 +91,10 @@ def test_equality_and_construction():
     assert compile(r'[^ab]') & compile(r'[^bc]') == compile('[^abc]')
 
 
+def test_concatenation_is_associative():
+    assert (a + b) + c == a + (b + c)
+
+
 def test_accepting():
     assert EPSILON.accepting
     assert not EMPTY.accepting

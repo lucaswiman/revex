@@ -172,6 +172,14 @@ DOT = _Dot()
 @six.python_2_unicode_compatible
 class Concatenation(RegularExpression):
     def __new__(cls, *children):
+        flattened_children = []
+        for child in children:
+            if isinstance(child, Concatenation):
+                for subchild in child.children:
+                    flattened_children.append(subchild)
+            else:
+                flattened_children.append(child)
+        children = flattened_children
         if EMPTY in children:
             return EMPTY
         children = tuple(child for child in children if child is not EPSILON)
@@ -191,12 +199,28 @@ class Concatenation(RegularExpression):
         return all(child.accepting for child in self.children)
 
     def derivative(self, char):
-        left, right = self.children
-        derivative = left.derivative(char) + right
-        if left.accepting:
-            return derivative | right.derivative(char)
-        else:
-            return derivative
+        """
+        Build up a disjunction of derivatives, starting from the left, stopping
+        when we hit a non-accepting regex.
+
+        For example, consider the regex:
+            a?[ab]?[abc]ad
+        Its derivative with respect to a is:
+            ([ab]?[abc]ad)|([abc]ad)|ad
+
+        * The first disjunct is where the character is consumed by the first child.
+        * The second is where the first child matched with ε, then the second child
+          consumed the character.
+        * The third is where the first two children matched with ε, then the third
+          child consumed the character. At this point, we can go no further, since
+          the "a" _must_ have been consumed by the third child.
+        """
+        derivative = EMPTY
+        for i, child in enumerate(self.children):
+            derivative = derivative | (child.derivative(char) + Concatenation(*self.children[i+1:]))
+            if not child.accepting:
+                break
+        return derivative
 
     @property
     def identity_tuple(self):
