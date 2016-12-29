@@ -46,7 +46,7 @@ class DFA(MultiDiGraph):
         node = self.start
         for char in string:
             try:
-                node = self.delta[(node, char)]
+                node = self.delta[node][char]
             except KeyError:
                 return False
         return self.node[node]['accepting']
