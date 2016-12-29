@@ -100,7 +100,9 @@ def test_union_is_associative():
 
 
 def test_intersection_is_associative():
-    assert (Star(a | b | c) & Star(b | c)) & Star(a | b) == Star(a | b | c) & (Star(b | c) & Star(a | b))
+    assert (
+        (Star(a | b | c) & Star(b | c)) & Star(a | b) ==
+        (Star(a | b | c) & (Star(b | c) & Star(a | b))))
 
 
 def test_accepting():
