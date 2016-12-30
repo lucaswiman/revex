@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 
 from collections import defaultdict
 
@@ -113,15 +114,8 @@ def minimize_dfa(dfa):
     marked = set()
     unmarked = set()
 
-    # Sentinel to hold non-terminating "hold" state. By convention a lack an
-    # out-edge means "does not match".
-    TERMINAL = object()
-    # states.append(TERMINAL)
-
     def delta(state, char):
-        if state is TERMINAL:
-            return TERMINAL
-        return dfa.delta[state].get(char, TERMINAL)
+        return dfa.delta[state][char]
 
     for i, p in enumerate(states):
         for q in states[i+1:]:

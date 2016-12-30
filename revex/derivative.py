@@ -95,7 +95,7 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
 
 
 def parenthesize_str(regex):
-    return str(regex) if regex.is_atomic else '(%s)' % regex
+    return six.text_type(regex) if regex.is_atomic else '(%s)' % regex
 
 
 def parenthesize_repr(regex):
@@ -238,6 +238,7 @@ class Concatenation(RegularExpression):
         return '+'.join(map(parenthesize_repr, self.children))
 
 
+@six.python_2_unicode_compatible
 class Intersection(RegularExpression):
     def __new__(cls, *children):
         flattened_children = set()
@@ -345,7 +346,7 @@ class CharSet(RegularExpression):
 
     def __str__(self):
         if len(self.chars) == 1 and not self.negated:
-            return str(self.chars[0])
+            return six.text_type(self.chars[0])
         return '[%s%s]' % ('^' if self.negated else '', ''.join(self.chars))
 
     def __repr__(self):
@@ -356,6 +357,7 @@ def Symbol(char):
     return CharSet([char])
 
 
+@six.python_2_unicode_compatible
 class Union(RegularExpression):
     def __new__(cls, *children):
         flattened_children = set()
@@ -404,6 +406,7 @@ class Union(RegularExpression):
         return '|'.join(map(parenthesize_repr, self.children))
 
 
+@six.python_2_unicode_compatible
 class Complement(RegularExpression):
     def __new__(cls, regex):
         """
@@ -443,6 +446,7 @@ class Complement(RegularExpression):
         return '~%s' % parenthesize_repr(self.regex)
 
 
+@six.python_2_unicode_compatible
 class Star(RegularExpression):
     def __new__(cls, regex):
         if regex is EMPTY or regex is EPSILON:
