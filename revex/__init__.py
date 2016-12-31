@@ -1,5 +1,5 @@
 from .derivative import RegularExpression
-from .machine import DEFAULT_ALPHABET
+from .dfa import DEFAULT_ALPHABET
 
 
 compile = RegularExpression.compile

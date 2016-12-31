@@ -16,7 +16,7 @@ from functools import reduce, total_ordering
 import six
 from parsimonious import NodeVisitor, Grammar
 
-from .machine import RegexDFA, DEFAULT_ALPHABET
+from .dfa import RegexDFA, DEFAULT_ALPHABET
 
 
 @total_ordering

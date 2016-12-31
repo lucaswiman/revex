@@ -6,7 +6,7 @@ from hypothesis import given, example
 from hypothesis import strategies as st
 
 import revex
-from revex.machine import DFA, get_equivalent_states, minimize_dfa
+from revex.dfa import DFA, get_equivalent_states, minimize_dfa
 
 example_regex = revex.compile(r'a[abc]*b[abc]*c')
 example_dfa = revex.build_dfa(r'a[abc]*b[abc]*c', alphabet='abcd')
