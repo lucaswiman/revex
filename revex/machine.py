@@ -75,16 +75,10 @@ class RegexDFA(DFA):
         """
         Builds a DFA from a revex.derivative.RegularExpression object.
 
-        Conventions:
-            - If there is no out-edge for a given transition, the regular
-              expression does not match.
-            - Nodes labeled as "accepting" represent terminals where the regular
-              expression matches.
-            - As in the construction here: https://drona.csa.iisc.ernet.in/~deepakd/fmcs-06/seminars/presentation.pdf  # noqa
-            - Nodes are named by the regular expression that, starting at that
-              node, matches that regular expression. In particular, the "start" node
-              is labeled with `regex`.
-            - Edges' `label` attribute stores the transition character.
+        Based of the construction here: https://drona.csa.iisc.ernet.in/~deepakd/fmcs-06/seminars/presentation.pdf  # noqa
+        Nodes are named by the regular expression that, starting at that node,
+        matches that regular expression. In particular, the "start" node is
+        labeled with `regex`.
         """
         super(RegexDFA, self).__init__(
             start=regex,
