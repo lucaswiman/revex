@@ -44,6 +44,10 @@ def test_equivalent_state_computation():
     states = [0, 1, 2, 3]
     assert equivalent == {(p, q) for p in states for q in states}
 
+    new_dfa = minimize_dfa(dfa)
+    assert len(new_dfa.node) == 1
+
+
 def test_equivalent_state_example():
     # Construct the DFA in this example:
     # https://www.tutorialspoint.com/automata_theory/dfa_minimization.htm
@@ -73,6 +77,8 @@ def test_equivalent_state_example():
 
     dfa.add_transition(f, f, '0')
     dfa.add_transition(f, f, '1')
+    assert not dfa.find_invalid_nodes()
+
     expected = {(a, b), (c, d), (c, e), (d, e)}
     expected |= {(x, x) for x in states}
     expected |= {(p, q) for (q, p) in expected}
@@ -80,4 +86,18 @@ def test_equivalent_state_example():
     equivalent = get_equivalent_states(dfa)
     assert equivalent == expected
     new_dfa = minimize_dfa(dfa)
-    assert False, 'Add assertions about minimized DFA.'
+    assert not new_dfa.find_invalid_nodes()
+
+    expected_dfa = DFA('ab', False, alphabet=alphabet)
+    expected_dfa.add_state('cde', True)
+    expected_dfa.add_state('f', False)
+
+    expected_dfa.add_transition('ab', 'ab', '0')
+    expected_dfa.add_transition('ab', 'cde', '1')
+    expected_dfa.add_transition('cde', 'cde', '0')
+    expected_dfa.add_transition('cde', 'f', '1')
+    expected_dfa.add_transition('f', 'f', '0')
+    expected_dfa.add_transition('f', 'f', '1')
+
+    assert not expected_dfa.construct_isomorphism(dfa)
+    assert expected_dfa.construct_isomorphism(new_dfa)

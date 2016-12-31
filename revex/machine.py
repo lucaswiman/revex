@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import logging
 from collections import defaultdict
 
 from networkx import MultiDiGraph
 
 # Characters common to ASCII, UTF-8 encoded text and LATIN-1 encoded text.
 DEFAULT_ALPHABET = ''.join(map(chr, range(0, 128)))
+
+
+logger = logging.getLogger(__name__)
 
 
 class DFA(MultiDiGraph):
@@ -37,7 +41,7 @@ class DFA(MultiDiGraph):
         if self.delta[from_state].get(char) == to_state:
             # Transition already present.
             return
-        elif self.delta[from_state].get(char) != None:
+        elif self.delta[from_state].get(char) is not None:
             raise ValueError('Already have a transition.')
         self.delta[from_state][char] = to_state
         return self.add_edge(
@@ -68,6 +72,50 @@ class DFA(MultiDiGraph):
         os.system(
             'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(self)))
         os.system('open /tmp/foo_{0}.png'.format(id(self)))
+
+    def find_invalid_nodes(self):
+        """
+        Returns a list of nodes which do not have a transition for every element
+        of the alphabet.
+
+        If this method returns a non-empty list, various methods in this module
+        may not work correctly.
+        """
+        invalid_nodes = []
+        alphabet = set(self.alphabet)
+        for from_node, trans in self.delta.items():
+            if set(trans) != alphabet:
+                invalid_nodes.append(from_node)
+        return invalid_nodes
+
+    def construct_isomorphism(self, other):
+        """
+        Returns a mapping of states between self and other exhibiting an
+        isomorphism, or None if no isomorphism exists.
+
+        There is a unique isomorphism between DFA's with no "invalid" nodes
+        (i.e. every node has a transition for each character in the alphabet).
+        """
+        if set(self.alphabet) != set(other.alphabet):
+            return None  # Two DFAs on different alphabets cannot be isomorphic.
+        elif len(self.node) != len(other.node):
+            return None
+        isomorphism = {self.start: other.start}
+        to_explore = [(self.start, other.start)]
+        while to_explore:
+            self_node, other_node = to_explore.pop()
+            for char, self_next_node in self.delta[self_node].items():
+                other_next_node = other.delta[other_node][char]
+                if self_next_node not in isomorphism:
+                    to_explore.append((self_next_node, other_next_node))
+                    isomorphism[self_next_node] = other_next_node
+                elif isomorphism[self_next_node] != other_next_node:
+                    logger.debug('Found inconsistent mapping %r->%r and %r via %s',
+                                 self_node, other_next_node, isomorphism[self_next_node],
+                                 char)
+                    return None
+        assert len(isomorphism) == len(self.node)
+        return isomorphism
 
 
 class RegexDFA(DFA):
@@ -145,7 +193,7 @@ def get_equivalent_states(dfa):
                     found_disproof = True
                     break
 
-    return equivalent | {(q ,p) for p, q in equivalent}
+    return equivalent | {(q, p) for p, q in equivalent}
 
 
 def minimize_dfa(dfa):
