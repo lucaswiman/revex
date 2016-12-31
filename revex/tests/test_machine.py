@@ -9,7 +9,7 @@ import revex
 from revex.machine import DFA, get_equivalent_states, minimize_dfa
 
 example_regex = revex.compile(r'a[abc]*b[abc]*c')
-example_dfa = example_regex.as_dfa(alphabet='abcd')
+example_dfa = revex.build_dfa(r'a[abc]*b[abc]*c', alphabet='abcd')
 example_builtin_regex = re.compile(r'^a[abc]*b[abc]*c$')
 
 
@@ -22,7 +22,7 @@ def test_derivative_matches_builtin(s):
 @given(st.text(alphabet='abcd'))
 @example('abbbbc')
 def test_dfa_matches_builtin(s):
-    assert example_dfa.matches(s) == bool(example_builtin_regex.match(s))
+    assert example_dfa.match(s) == bool(example_builtin_regex.match(s))
 
 
 def test_equivalent_state_computation():
@@ -60,20 +60,27 @@ def test_equivalent_state_example():
     dfa.add_state(e, True)
     dfa.add_state(f, False)
 
+    assert set(dfa.find_invalid_nodes()) == set(states)
+
     dfa.add_transition(a, b, '0')
     dfa.add_transition(a, c, '1')
+    assert set(dfa.find_invalid_nodes()) == set(states) - {a}
 
     dfa.add_transition(b, a, '0')
     dfa.add_transition(b, d, '1')
+    assert set(dfa.find_invalid_nodes()) == set(states) - {a, b}
 
     dfa.add_transition(c, e, '0')
     dfa.add_transition(c, f, '1')
+    assert set(dfa.find_invalid_nodes()) == set(states) - {a, b, c}
 
     dfa.add_transition(d, e, '0')
     dfa.add_transition(d, f, '1')
+    assert set(dfa.find_invalid_nodes()) == set(states) - {a, b, c, d}
 
     dfa.add_transition(e, e, '0')
     dfa.add_transition(e, f, '1')
+    assert set(dfa.find_invalid_nodes()) == set(states) - {a, b, c, d, e}
 
     dfa.add_transition(f, f, '0')
     dfa.add_transition(f, f, '1')

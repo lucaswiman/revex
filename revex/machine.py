@@ -52,16 +52,13 @@ class DFA(MultiDiGraph):
             }
         )
 
-    def matches(self, string):
+    def match(self, string):
         node = self.start
         for char in string:
-            try:
-                node = self.delta[node][char]
-            except KeyError:
-                return False
+            node = self.delta[node][char]
         return self.node[node]['accepting']
 
-    def _draw(self):
+    def _draw(self):  # pragma: no cover
         """
         Hack to draw the graph and open it in preview. Sorta OS X only-ish.
         """
@@ -83,7 +80,8 @@ class DFA(MultiDiGraph):
         """
         invalid_nodes = []
         alphabet = set(self.alphabet)
-        for from_node, trans in self.delta.items():
+        for from_node in self.nodes():
+            trans = self.delta[from_node]
             if set(trans) != alphabet:
                 invalid_nodes.append(from_node)
         return invalid_nodes
