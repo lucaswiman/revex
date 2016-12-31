@@ -100,13 +100,13 @@ class RegexDFA(DFA):
 
 def get_equivalent_states(dfa):
     """
-    Return equivalent states in the DFA, as constructed using the Myhill-Nerode
-    theorem here: https://cse.sc.edu/~fenner/csce551/minimization.pdf
+    Return equivalent states in the DFA, as constructed using the Hopcroft's
+    algorithm. See https://en.wikipedia.org/wiki/DFA_minimization
 
-    See also http://www8.cs.umu.se/kurser/TDBC92/VT06/final/1.pdf for more background,
-    and https://www.tutorialspoint.com/automata_theory/dfa_minimization.htm for diagrams.
+    See also http://www8.cs.umu.se/kurser/TDBC92/VT06/final/1.pdf and
+    https://cse.sc.edu/~fenner/csce551/minimization.pdf for more background.
 
-    TODO: this algorithm doesn't does twice as much work as needed by not ordering
+    TODO: this algorithm does twice as much work as needed by not ordering
     the states.
     """
     states = list(dfa.nodes())
