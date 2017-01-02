@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import logging
 from collections import defaultdict
 
+import six
 from networkx import MultiDiGraph
 
 # Characters common to ASCII, UTF-8 encoded text and LATIN-1 encoded text.
@@ -232,3 +233,33 @@ def minimize_dfa(dfa):
             )
 
     return new_dfa
+
+
+def construct_integer_dfa(dfa):
+    """
+    Constructs a DFA whose states are all integers from 0 to (number of states),
+    with 0 the start state.
+
+    This is more efficient for some algorithms, since arrays/lists can be used
+    instead of hash tables.
+    """
+    nodes = [dfa.start] + [node for node in dfa.node if node != dfa.start]
+    node_to_index = {node: index for index, node in enumerate(nodes)}
+    int_dfa = DFA(
+        start=node_to_index[dfa.start],
+        start_accepting=dfa.node[dfa.start]['accepting'],
+        alphabet=dfa.alphabet,
+    )
+    for node, attr in six.iteritems(dfa.node):
+        int_dfa.add_state(
+            node_to_index[node],
+            accepting=attr['accepting'],
+        )
+    for from_node, trans in six.iteritems(dfa.delta):
+        for char, to_node in six.iteritems(trans):
+            int_dfa.add_transition(
+                node_to_index[from_node],
+                node_to_index[to_node],
+                char,
+            )
+    return int_dfa
