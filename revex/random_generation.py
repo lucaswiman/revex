@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division
 
-import array
 import random
 from bisect import bisect_left
 
@@ -48,17 +47,6 @@ class NaiveRandomRegularLanguageGenerator(object):
 
         self.nodes = range(0, len(self.dfa.node))
 
-        def compute_transition_index(node):
-            index = [[] for _ in self.nodes]
-            for char, next_node in dfa.delta[node].items():
-                index[next_node].append(char)
-            return index
-
-        self.node_to_node_to_chars = [
-            compute_transition_index(node)
-            for node in self.nodes
-        ]
-
         # Denoted by l_{p,n} in section 2 of the Bernardi & Giménez paper,
         # path_counts[state][n] is the number of paths of length n from
         # state to _some_ final/accepting state. Since these numbers can
@@ -66,7 +54,7 @@ class NaiveRandomRegularLanguageGenerator(object):
         self.path_counts = [
             # Initialize the array with the number of zero-length paths from the
             # state to an accepting state. (i.e. 1 if the state is accepting.)
-            array.array('d', [1.0 if self.dfa.node[state]['accepting'] else 0.0])
+            [1.0 if self.dfa.node[state]['accepting'] else 0.0]
             for state in self.nodes
         ]
         self.n = 0
