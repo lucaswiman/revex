@@ -2,13 +2,14 @@
 from __future__ import unicode_literals
 
 import logging
+import re
 from collections import defaultdict
 
 import six
 from networkx import MultiDiGraph
 
-# Characters common to ASCII, UTF-8 encoded text and LATIN-1 encoded text.
-DEFAULT_ALPHABET = ''.join(map(chr, range(0, 128)))
+# All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
+DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
 
 
 logger = logging.getLogger(__name__)
