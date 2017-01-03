@@ -76,6 +76,7 @@ class NaiveRandomRegularLanguageGenerator(object):
                 self.path_counts[self.dfa.delta[node][char]][length - 1]
                 for char in self.alphabet
             ])
+            self.node_length_to_character_dist[(node, length)] = dist
         return dist
 
     def random_string(self, length):
