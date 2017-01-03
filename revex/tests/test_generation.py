@@ -75,3 +75,17 @@ def test():
         pos_6,
         {possibility: 1/len(possibilities) for possibility in possibilities}
     )
+    for length in range(1, 15):
+        for _ in range(100):
+            pos = gen.random_string(length)
+            neg = neg_gen.random_string(length)
+            assert regex.match(pos), pos
+            assert not regex.match(neg), neg
+
+
+def test_empty_nonmatch():
+    dfa = revex.build_dfa(r'a', alphabet='a')
+    gen = NaiveRandomRegularLanguageGenerator(dfa)
+    assert gen.random_string(0) is None
+    assert gen.random_string(1) == 'a'
+    assert gen.random_string(2) == None
