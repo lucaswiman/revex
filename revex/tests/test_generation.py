@@ -88,4 +88,4 @@ def test_empty_nonmatch():
     gen = NaiveRandomRegularLanguageGenerator(dfa)
     assert gen.random_string(0) is None
     assert gen.random_string(1) == 'a'
-    assert gen.random_string(2) == None
+    assert gen.random_string(2) is None
