@@ -9,9 +9,15 @@ from six.moves import range
 from revex.dfa import construct_integer_dfa
 
 
+class InvalidDistributionError(Exception):
+    pass
+
+
 class DiscreteRandomVariable(list):
     def __init__(self, counts):
         total = sum(counts, 0.0)
+        if total == 0:
+            raise InvalidDistributionError()
         super(DiscreteRandomVariable, self).__init__(
             count / total for count in counts)
         for i in range(1, len(self)):
@@ -70,22 +76,35 @@ class NaiveRandomRegularLanguageGenerator(object):
             self.n += 1
 
     def get_dist_for_node_and_length(self, node, length):
-        dist = self.node_length_to_character_dist.get((node, length))
-        if dist is None:
-            dist = DiscreteRandomVariable([
-                self.path_counts[self.dfa.delta[node][char]][length - 1]
-                for char in self.alphabet
-            ])
+        if (node, length) not in self.node_length_to_character_dist:
+            try:
+                dist = DiscreteRandomVariable([
+                    self.path_counts[self.dfa.delta[node][char]][length - 1]
+                    for char in self.alphabet
+                ])
+            except InvalidDistributionError:
+                # There are no paths of the given length.
+                dist = None
             self.node_length_to_character_dist[(node, length)] = dist
-        return dist
+        return self.node_length_to_character_dist[(node, length)]
 
     def random_string(self, length):
+        """
+        Return a string matched by the DFA of the given length, chosen uniformly
+        at random among all strings of that length.
+
+        Returns `None` if no such string exists.
+        """
         self._precompute_l(length)
         state = self.dfa.start
         chars = []
+        if length == 0 and not self.dfa.node[state]['accepting']:
+            return None
         for i in range(length):
-            char = self.alphabet[
-                self.get_dist_for_node_and_length(state, length - i).draw()]
+            dist = self.get_dist_for_node_and_length(state, length - i)
+            if dist is None:
+                return None
+            char = self.alphabet[dist.draw()]
             chars.append(char)
             state = self.dfa.delta[state][char]
         return type(self.alphabet[0])().join(chars)
