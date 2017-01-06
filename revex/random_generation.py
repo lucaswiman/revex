@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 
 import random
 from bisect import bisect_left
+from itertools import count
 
 from six.moves import range
 
@@ -108,3 +109,9 @@ class NaiveRandomRegularLanguageGenerator(object):
             chars.append(char)
             state = self.dfa.delta[state][char]
         return type(self.alphabet[0])().join(chars)
+
+    def valid_lengths_iter(self):
+        for length in count():
+            self._precompute_l(length)
+            if self.path_counts[self.dfa.start][length] > 0:
+                yield length

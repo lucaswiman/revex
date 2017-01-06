@@ -1,6 +1,7 @@
 from __future__ import division
 import re
 from collections import Counter
+from itertools import islice
 
 import revex
 from revex.random_generation import NaiveRandomRegularLanguageGenerator
@@ -89,3 +90,15 @@ def test_empty_nonmatch():
     assert gen.random_string(0) is None
     assert gen.random_string(1) == 'a'
     assert gen.random_string(2) is None
+
+
+def test_valid_lengths_iter():
+    alphabet = 'abc'
+    ab = NaiveRandomRegularLanguageGenerator(revex.compile('(ab)*').as_dfa(alphabet))
+    assert [i * 2 for i in range(50)] == list(islice(ab.valid_lengths_iter(), 0, 50))
+    aabb = NaiveRandomRegularLanguageGenerator(revex.compile('(aa)*(bb)*').as_dfa(alphabet))
+    assert [i * 2 for i in range(50)] == list(islice(aabb.valid_lengths_iter(), 0, 50))
+
+    sixes = NaiveRandomRegularLanguageGenerator(
+        (revex.compile('(aa)*') & revex.compile('(aaa)*')).as_dfa(alphabet))
+    assert [i * 6 for i in range(50)] == list(islice(sixes.valid_lengths_iter(), 0, 50))
