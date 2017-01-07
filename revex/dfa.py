@@ -135,15 +135,13 @@ class RegexDFA(DFA):
         )
         nodes = {regex}
         while nodes:
-            next_nodes = set()
-            for node in nodes:
-                for char in alphabet:
-                    derivative = node.derivative(char)
-                    if not self.has_node(derivative):
-                        next_nodes.add(derivative)
-                        self.add_state(derivative, derivative.accepting)
-                    self.add_transition(node, derivative, char)
-            nodes = next_nodes
+            node = nodes.pop()
+            for char in alphabet:
+                derivative = node.derivative(char)
+                if not self.has_node(derivative):
+                    nodes.add(derivative)
+                    self.add_state(derivative, derivative.accepting)
+                self.add_transition(node, derivative, char)
 
 
 def get_equivalent_states(dfa):
