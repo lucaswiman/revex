@@ -6,6 +6,7 @@ from hypothesis import given, example
 from hypothesis import strategies as st
 
 import revex
+from revex.derivative import EPSILON, EMPTY
 from revex.dfa import DFA, get_equivalent_states, minimize_dfa
 
 example_regex = revex.compile(r'a[abc]*b[abc]*c')
@@ -108,3 +109,20 @@ def test_equivalent_state_example():
 
     assert not expected_dfa.construct_isomorphism(dfa)
     assert expected_dfa.construct_isomorphism(new_dfa)
+
+
+def test_has_finite_language():
+    assert revex.build_dfa('aa').has_finite_language
+    assert not revex.build_dfa('aa*').has_finite_language
+    assert revex.build_dfa('a(bc|cd|aaa)').has_finite_language
+    assert not revex.build_dfa('a(bc*|cd|aaa)').has_finite_language
+    assert not (~EPSILON).as_dfa().has_finite_language
+    assert EMPTY.as_dfa().has_finite_language
+    assert not (~EMPTY).as_dfa().has_finite_language
+
+
+def test_is_empty():
+    assert not (~EPSILON).as_dfa().is_empty
+    assert not EPSILON.as_dfa().is_empty
+    assert EMPTY.as_dfa().is_empty
+    assert (revex.compile('a*|b*') & revex.compile('c+')).as_dfa('abc').is_empty
