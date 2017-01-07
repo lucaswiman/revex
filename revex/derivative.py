@@ -25,7 +25,7 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     A generalized regular expression, supporting:
         - ∅:               EMPTY
         - ε:               EPSILON
-        - Symbol:          Symbol(elem)
+        - CharSet:         CharSet(elems)
         - Union:           R1 | R2
         - Intersection:    R1 & R2
         - Complementation: ~R
