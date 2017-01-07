@@ -93,20 +93,26 @@ class DFA(MultiDiGraph):
         return is_directed_acyclic_graph(graph.as_multidigraph.subgraph(live_states))
 
     def get_live_graph(self):
+        graph_copy = copy.deepcopy(self)
         accepting_states = {
-            node for node in self.node if self.node[node]['accepting']
+            node for node in graph_copy.node if graph_copy.node[node]['accepting']
         }
 
         # Add a "sink" node with an in-edge from every accepting state. This is
         # is solely done because the networkx API makes it easier to find the
         # ancestor of a node than a set of nodes.
         sink = object()
-        self.add_node(sink)
+        graph_copy.add_node(sink)
         for state in accepting_states:
-            self.add_edge(state, sink)
+            graph_copy.add_edge(state, sink)
 
-        live_states = {self.start} | (ancestors(self, sink) & descendants(self, self.start))
-        return self.as_multidigraph.subgraph(live_states)
+        live_states = {graph_copy.start} | (ancestors(graph_copy, sink) & descendants(graph_copy, graph_copy.start))
+        live_graph = graph_copy.as_multidigraph.subgraph(live_states)
+        for node in live_graph.node:
+            edges = live_graph.out_edges(nbunch=[node], data=True)
+
+        # TODO(jeff): collapse edges into character ranges
+        return live_graph
 
 
     def add_state(self, state, accepting):

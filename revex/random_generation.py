@@ -17,7 +17,7 @@ class InvalidDistributionError(Exception):
 class DiscreteRandomVariable(list):
     def __init__(self, counts):
         total = sum(counts, 0.0)
-        if total == 0:
+        if total <= 0:
             raise InvalidDistributionError()
         super(DiscreteRandomVariable, self).__init__(
             count / total for count in counts)
