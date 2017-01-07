@@ -29,10 +29,13 @@ class DiscreteRandomVariable(list):
             raise ValueError('Empty distribution!')
 
     def draw(self, random=random):
+        """
+        Draw according to the probabilities in `counts`.
+        """
         return bisect_left(self, random.random())
 
 
-class NaiveRandomRegularLanguageGenerator(object):
+class RandomRegularLanguageGenerator(object):
     """
     Based off the "Recursive RGA" algorithm described in Bernardi & Giménez,
     "A Linear Algorithm for the Random Generation of Regular Languages"
@@ -89,7 +92,7 @@ class NaiveRandomRegularLanguageGenerator(object):
             self.node_length_to_character_dist[(node, length)] = dist
         return self.node_length_to_character_dist[(node, length)]
 
-    def random_string(self, length):
+    def generate_string(self, length):
         """
         Return a string matched by the DFA of the given length, chosen uniformly
         at random among all strings of that length.

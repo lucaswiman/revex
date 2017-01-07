@@ -4,9 +4,7 @@ from collections import Counter
 from itertools import islice
 
 import revex
-from revex.random_generation import NaiveRandomRegularLanguageGenerator
-
-NaiveRandomRegularLanguageGenerator
+from revex.random_generation import RandomRegularLanguageGenerator
 
 
 def assert_dist_approximately_equal(counts, expected_dist, threshold=0.05):
@@ -20,23 +18,23 @@ def assert_dist_approximately_equal(counts, expected_dist, threshold=0.05):
 
 def test():
     dfa = revex.build_dfa(r'(a|bb|ccc)*', alphabet='abc')
-    gen = NaiveRandomRegularLanguageGenerator(dfa)
+    gen = RandomRegularLanguageGenerator(dfa)
 
     neg_dfa = (~revex.compile(r'(a|bb|ccc)*')).as_dfa(alphabet='abc')
-    neg_gen = NaiveRandomRegularLanguageGenerator(neg_dfa)
+    neg_gen = RandomRegularLanguageGenerator(neg_dfa)
 
     regex = re.compile(r'^(a|bb|ccc)*$')
 
     # These assertions are mostly probabilistic, so the numbers are chosen so
     # as to make the tests quite likely to pass.
-    assert {gen.random_string(0) for _ in range(10)} == {''}
-    assert {gen.random_string(1) for _ in range(10)} == {'a'}
+    assert {gen.generate_string(0) for _ in range(10)} == {''}
+    assert {gen.generate_string(1) for _ in range(10)} == {'a'}
 
-    negs_1 = Counter(neg_gen.random_string(1) for _ in range(1000))
+    negs_1 = Counter(neg_gen.generate_string(1) for _ in range(1000))
     assert_dist_approximately_equal(negs_1, {'b': 0.5, 'c': 0.5})
 
-    pos_2 = Counter(gen.random_string(2) for _ in range(1000))
-    negs_2 = Counter(neg_gen.random_string(2) for _ in range(1000))
+    pos_2 = Counter(gen.generate_string(2) for _ in range(1000))
+    negs_2 = Counter(neg_gen.generate_string(2) for _ in range(1000))
     assert_dist_approximately_equal(pos_2, {'aa': 0.5, 'bb': 0.5})
     assert_dist_approximately_equal(
         negs_2,
@@ -50,7 +48,7 @@ def test():
             'ac': 1/7,
         })
 
-    pos_6 = Counter(gen.random_string(6) for _ in range(10000))
+    pos_6 = Counter(gen.generate_string(6) for _ in range(10000))
     possibilities = [
         'aaaaaa',
         'cccccc',
@@ -78,27 +76,27 @@ def test():
     )
     for length in range(1, 15):
         for _ in range(100):
-            pos = gen.random_string(length)
-            neg = neg_gen.random_string(length)
+            pos = gen.generate_string(length)
+            neg = neg_gen.generate_string(length)
             assert regex.match(pos), pos
             assert not regex.match(neg), neg
 
 
 def test_empty_nonmatch():
     dfa = revex.build_dfa(r'a', alphabet='a')
-    gen = NaiveRandomRegularLanguageGenerator(dfa)
-    assert gen.random_string(0) is None
-    assert gen.random_string(1) == 'a'
-    assert gen.random_string(2) is None
+    gen = RandomRegularLanguageGenerator(dfa)
+    assert gen.generate_string(0) is None
+    assert gen.generate_string(1) == 'a'
+    assert gen.generate_string(2) is None
 
 
 def test_valid_lengths_iter():
     alphabet = 'abc'
-    ab = NaiveRandomRegularLanguageGenerator(revex.compile('(ab)*').as_dfa(alphabet))
+    ab = RandomRegularLanguageGenerator(revex.compile('(ab)*').as_dfa(alphabet))
     assert [i * 2 for i in range(50)] == list(islice(ab.valid_lengths_iter(), 0, 50))
-    aabb = NaiveRandomRegularLanguageGenerator(revex.compile('(aa)*(bb)*').as_dfa(alphabet))
+    aabb = RandomRegularLanguageGenerator(revex.compile('(aa)*(bb)*').as_dfa(alphabet))
     assert [i * 2 for i in range(50)] == list(islice(aabb.valid_lengths_iter(), 0, 50))
 
-    sixes = NaiveRandomRegularLanguageGenerator(
+    sixes = RandomRegularLanguageGenerator(
         (revex.compile('(aa)*') & revex.compile('(aaa)*')).as_dfa(alphabet))
     assert [i * 6 for i in range(50)] == list(islice(sixes.valid_lengths_iter(), 0, 50))
