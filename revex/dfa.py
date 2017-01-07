@@ -6,8 +6,7 @@ import re
 from collections import defaultdict
 
 import six
-from networkx import MultiDiGraph, ancestors, is_directed_acyclic_graph, \
-    descendants
+import networkx as nx
 
 # All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
 DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
@@ -16,7 +15,19 @@ DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 
 logger = logging.getLogger(__name__)
 
 
-class DFA(MultiDiGraph):
+class RevexError(Exception):
+    pass
+
+
+class EmptyLanguageError(RevexError):
+    pass
+
+
+class InfiniteLanguageError(RevexError):
+    pass
+
+
+class DFA(nx.MultiDiGraph):
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
         super(DFA, self).__init__()
         self.start = start
@@ -36,7 +47,7 @@ class DFA(MultiDiGraph):
         This is a bit of a hack, but allows some useful methods like .subgraph()
         to work correctly.
         """
-        graph = MultiDiGraph()
+        graph = nx.MultiDiGraph()
         graph.add_nodes_from(self.nodes(data=True))
         graph.add_edges_from(self.edges(data=True))
         return graph
@@ -48,19 +59,9 @@ class DFA(MultiDiGraph):
         return bool(minimize_dfa(self).construct_isomorphism(empty_machine))
 
     @property
-    def has_finite_language(self):
-        """
-        Returns True iff this DFA recognizes a finite (possibly empty) language.
-
-        Based on decision procedure described here:
-        http://math.uaa.alaska.edu/~afkjm/cs351/handouts/non-regular.pdf
-
-        - Remove nodes which cannot reach an accepting state (see `live_graph`
-          below).
-        - Language is infinite iff the remaining graph is acyclic.
-        """
+    def _acceptable_subgraph(self):
         graph = self.as_multidigraph
-        reachable_states = descendants(graph, self.start) | {self.start}
+        reachable_states = nx.descendants(graph, self.start) | {self.start}
         graph = graph.subgraph(reachable_states)
         reachable_accepting_states = reachable_states & {
             node for node in graph.node if graph.node[node]['accepting']
@@ -74,8 +75,81 @@ class DFA(MultiDiGraph):
         for state in reachable_accepting_states:
             graph.add_edge(state, sink)
 
-        acceptable_sates = ancestors(graph, sink)
-        return is_directed_acyclic_graph(graph.subgraph(acceptable_sates))
+        acceptable_sates = nx.ancestors(graph, sink)
+        return graph.subgraph(acceptable_sates)
+
+    @property
+    def has_finite_language(self):
+        """
+        Returns True iff this DFA recognizes a finite (possibly empty) language.
+
+        Based on decision procedure described here:
+        http://math.uaa.alaska.edu/~afkjm/cs351/handouts/non-regular.pdf
+
+        - Remove nodes which cannot reach an accepting state (see
+          `_acceptable_subgraph` above).
+        - Language is infinite iff the remaining graph is acyclic.
+        """
+        return nx.is_directed_acyclic_graph(self._acceptable_subgraph)
+
+    @property
+    def longest_string(self):
+        """
+        Returns an example of a maximally long string recognized by this DFA.
+
+        If the language is infinite, raises InfiniteLanguageError.
+        If the language is empty, raises EmptyLanguageError.
+
+        The algorithm is similar to the one described in these lecture notes
+        for deciding whether a language is finite:
+        http://math.uaa.alaska.edu/~afkjm/cs351/handouts/non-regular.pdf
+        """
+
+        # Compute what we're calling the "acceptable subgraph" by restricting to
+        # states which are (1) descendants of a start state, and (2) ancestors of
+        # an accepting state. These two properties imply that there is at least
+        # one walk between these two states, corresponding to a string present in
+        # the language.
+        acceptable_subgraph = self._acceptable_subgraph
+        if len(acceptable_subgraph.node) == 0:
+            # If this graph is _empty_, then the language is empty.
+            raise EmptyLanguageError()
+
+        # Otherwise, we try to find the longest path in it. Internally, networkx
+        # does this by topologically sorting the graph (which only works if it's
+        # a DAG), then using the sorted graph to construct the longest path in
+        # linear time.
+        try:
+            longest_path = nx.algorithms.dag.dag_longest_path(
+                acceptable_subgraph)
+        except nx.NetworkXUnfeasible:
+            # If a topological sort is not possible, this means there is a
+            # cycle, and the recognized language is infinite. In this case,
+            # nx raises ``nx.NetworkXUnfeasible``, and we can return `None`.
+            raise InfiniteLanguageError()
+
+        # To show that the longest path must originate at the start node,
+        # consider 4 cases for the position of s in a longest path P from u to
+        # v:
+        #
+        # (a) At the beginning. Done; this is what we were seeking to prove.
+        # (b) On the path, but not at the beginning. In this case, u is
+        #     reachable from s (by property (1) above), and s in reachable from
+        #     u (since s is on a path from u to v). This means the graph
+        #     contains a cycle, which contradicts that we've constructed a
+        #     topological sort on it.
+        # (c) Disjoint from s. Let P' be a path connecting s to u (which must
+        #     exist by property (1)). If this path contains a vertex u'!=u in P,
+        #     then P ∪ P' contains a cycle (from u to u' on P and from u' to u
+        #     on P'), which is a contradiction. But then P ∪ P' is a path, which
+        #     contains at least one more vertex than P (in particular, s), and
+        #     so is a longer path, which contradicts the maximality assumption.
+
+        chars = []
+        for state1, state2 in zip(longest_path, longest_path[1:]):
+            edges = self.succ[state1][state2]
+            chars.append(next(six.itervalues(edges))['transition'])
+        return ''.join(chars)
 
     @property
     def live_subgraph(self):
@@ -83,6 +157,10 @@ class DFA(MultiDiGraph):
         Returns the graph of "live" states for this graph, i.e. the start state
         together with states that may be involved in positively matching a string
         (reachable from the start node and an ancestor of an accepting node).
+
+        This is intended for display purposes, only showing the paths which
+        might lead to an accepting state, or just the start state if no such
+        paths exist.
         """
         graph = self.as_multidigraph
         accepting_states = {
@@ -97,7 +175,7 @@ class DFA(MultiDiGraph):
         for state in accepting_states:
             graph.add_edge(state, sink)
 
-        live_states = {self.start} | (ancestors(graph, sink) & descendants(graph, self.start))
+        live_states = {self.start} | (nx.ancestors(graph, sink) & nx.descendants(graph, self.start))
         return graph.subgraph(live_states)
 
     def add_state(self, state, accepting):

@@ -2,12 +2,14 @@ from __future__ import unicode_literals
 
 import re
 
+import pytest
 from hypothesis import given, example
 from hypothesis import strategies as st
 
 import revex
 from revex.derivative import EPSILON, EMPTY
-from revex.dfa import DFA, get_equivalent_states, minimize_dfa
+from revex.dfa import DFA, get_equivalent_states, minimize_dfa, \
+    InfiniteLanguageError, EmptyLanguageError
 
 example_regex = revex.compile(r'a[abc]*b[abc]*c')
 example_dfa = revex.build_dfa(r'a[abc]*b[abc]*c', alphabet='abcd')
@@ -126,3 +128,23 @@ def test_is_empty():
     assert not EPSILON.as_dfa().is_empty
     assert EMPTY.as_dfa().is_empty
     assert (revex.compile('a*|b*') & revex.compile('c+')).as_dfa('abc').is_empty
+
+
+def test_longest_string():
+    ip = revex.compile(
+        r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
+    assert ip.as_dfa('0123456789.').has_finite_language
+    assert len(ip.as_dfa('0123456789.').longest_string) == 15
+    assert ip.match(ip.as_dfa('0123456789.').longest_string)
+
+    with pytest.raises(InfiniteLanguageError):
+        (revex.compile(r'([ab]{4})*') & revex.compile(r'([ab]{3})*')).as_dfa('ab').longest_string
+
+    assert (revex.compile(r'(ab)*') & revex.compile(r'(ba)*')).as_dfa('ab').has_finite_language
+    assert (revex.compile(r'(ab)*') & revex.compile(r'(ba)*')).as_dfa('ab').longest_string == ''
+
+    assert (revex.compile(r'(ab)+') & revex.compile(r'(ba)+')).as_dfa('ab').has_finite_language
+    with pytest.raises(EmptyLanguageError):
+        (revex.compile(r'(ab)+') & revex.compile(r'(ba)+')).as_dfa('ab').longest_string
+
+    assert EPSILON.as_dfa().longest_string == ''
