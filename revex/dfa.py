@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import copy
 import logging
+import operator
 import re
 from collections import defaultdict
+from functools import reduce
 
 import six
-from networkx import MultiDiGraph
+from networkx import MultiDiGraph, ancestors, is_directed_acyclic_graph, \
+    descendants
 
 # All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
 DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
@@ -26,6 +30,84 @@ class DFA(MultiDiGraph):
         self.delta = defaultdict(dict)
 
         self.alphabet = alphabet
+
+    @property
+    def as_multidigraph(self):
+        """
+        Constructs a MultiDiGraph that is a copy of self.
+
+        This is a bit of a hack, but allows some useful methods like .subgraph()
+        to work correctly.
+        """
+        graph = MultiDiGraph()
+        graph.add_nodes_from(self.node)
+        for node in self.node:
+            if 'accepting' in self.node[node]:
+                color='green' if self.node[node]['accepting'] else 'black'
+            else:
+                color = 'black'  # TODO: whatevs
+            graph.add_node(
+                node,
+                color=color)
+
+
+        graph.add_edges_from(self.edges(data=True))
+        # for from_node, to_node,  in self.edges_iter():
+        #     graph.add_edge(from_node, to_node)
+        return graph
+
+    @property
+    def is_empty(self):
+        from .derivative import EMPTY
+        empty_machine = EMPTY.as_dfa(self.alphabet)
+        return bool(minimize_dfa(self).construct_isomorphism(empty_machine))
+
+    @property
+    def has_finite_language(self):
+        """
+        Returns True iff this DFA recognizes a finite (possibly empty) language.
+
+        Based on decision procedure described here:
+        http://math.uaa.alaska.edu/~afkjm/cs351/handouts/non-regular.pdf
+
+        - Remove nodes which cannot reach an accepting state
+        - Language is infinite iff the remaining graph is acyclic.
+        """
+        graph = construct_integer_dfa(self)
+        accepting_states = {
+            node for node in graph.node if graph.node[node]['accepting']
+        }
+        if not accepting_states:
+            # The language is empty, since there are no accepting states.
+            return True
+
+        # Add a "sink" node with an in-edge from every accepting state. This is
+        # is solely done because the networkx API makes it easier to find the
+        # ancestor of a node than a set of nodes.
+        sink = object()
+        graph.add_node(sink)
+        for state in accepting_states:
+            graph.add_edge(state, sink)
+
+        live_states = {graph.start} | (ancestors(graph, sink) & descendants(graph, graph.start))
+        return is_directed_acyclic_graph(graph.as_multidigraph.subgraph(live_states))
+
+    def get_live_graph(self):
+        accepting_states = {
+            node for node in self.node if self.node[node]['accepting']
+        }
+
+        # Add a "sink" node with an in-edge from every accepting state. This is
+        # is solely done because the networkx API makes it easier to find the
+        # ancestor of a node than a set of nodes.
+        sink = object()
+        self.add_node(sink)
+        for state in accepting_states:
+            self.add_edge(state, sink)
+
+        live_states = {self.start} | (ancestors(self, sink) & descendants(self, self.start))
+        return self.as_multidigraph.subgraph(live_states)
+
 
     def add_state(self, state, accepting):
         return self.add_node(
@@ -60,17 +142,21 @@ class DFA(MultiDiGraph):
             node = self.delta[node][char]
         return self.node[node]['accepting']
 
-    def _draw(self):  # pragma: no cover
+    def _draw(self, full=False):  # pragma: no cover
         """
         Hack to draw the graph and open it in preview. Sorta OS X only-ish.
         """
         from networkx.drawing.nx_agraph import write_dot
         import os
+        if full:
+            graph = self
+        else:
+            graph = self.get_live_graph()
 
-        write_dot(self, '/tmp/foo_%s.dot' % id(self))
+        write_dot(graph, '/tmp/foo_%s.dot' % id(graph))
         os.system(
-            'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(self)))
-        os.system('open /tmp/foo_{0}.png'.format(id(self)))
+            'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(graph)))
+        os.system('open /tmp/foo_{0}.png'.format(id(graph)))
 
     def find_invalid_nodes(self):
         """
