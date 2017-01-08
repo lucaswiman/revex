@@ -54,9 +54,7 @@ class DFA(nx.MultiDiGraph):
 
     @property
     def is_empty(self):
-        from .derivative import EMPTY
-        empty_machine = EMPTY.as_dfa(self.alphabet)
-        return bool(minimize_dfa(self).construct_isomorphism(empty_machine))
+        return len(self._acceptable_subgraph.node) == 0
 
     @property
     def _acceptable_subgraph(self):

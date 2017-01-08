@@ -5,7 +5,7 @@ from revex.derivative import (
     CharSet)
 
 
-a, b, c = [CharSet[char] for char in 'abc']
+a, b, c = [CharSet(char) for char in 'abc']
 
 TYPE_TO_EXAMPLE = {
     # The __new__ hacking (automatic simplification) makes it slightly
