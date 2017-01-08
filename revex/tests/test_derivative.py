@@ -1,3 +1,5 @@
+import re
+
 from revex.derivative import (
     EMPTY, EPSILON, Symbol, Concatenation, Intersection, Union, Complement, Star, RegexVisitor,
     CharSet)
@@ -133,3 +135,24 @@ def test_parser():
     assert compile(r'[.]') == CharSet('.', negated=False)
     assert compile(r'[\.]') == CharSet('.', negated=False)
     assert compile(r'a?') == a | EPSILON
+
+
+def test_complex_regex():
+    # regex to recognize IPv4 addresses. From
+    # https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html  # noqa
+    ipv4 = r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+    actual = re.compile('^%s$' % ipv4)
+    regex = compile(ipv4)
+    dfa = regex.as_dfa()
+    examples = [
+        '127.0.0.1',
+        '250.250.250.25',
+        '000.000.000.000',
+        'abc',
+        '256.256.256.256',
+        '1234.123.123.123',
+    ]
+    for example in examples:
+        assert 1 == len({bool(actual.match(example)),
+                         regex.match(example),
+                         dfa.match(example)})

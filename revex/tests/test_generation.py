@@ -3,9 +3,26 @@ import re
 from collections import Counter
 from itertools import islice
 
+import pytest
+
 import revex
-from revex.derivative import EMPTY
-from revex.random_generation import RandomRegularLanguageGenerator
+from revex.derivative import EMPTY, RegularExpression
+from revex.random_generation import RandomRegularLanguageGenerator, \
+    DeterministicRegularLanguageGenerator
+
+
+def rgen(regex, alphabet=None):
+    alphabet = alphabet or list(set(str(regex)))
+    if not isinstance(regex, RegularExpression):
+        regex = revex.compile(regex)
+    return RandomRegularLanguageGenerator(regex.as_dfa(alphabet))
+
+
+def dgen(regex, alphabet=None):
+    alphabet = alphabet or list(set(str(regex)))
+    if not isinstance(regex, RegularExpression):
+        regex = revex.compile(regex)
+    return DeterministicRegularLanguageGenerator(regex.as_dfa(alphabet))
 
 
 def assert_dist_approximately_equal(counts, expected_dist, threshold=0.05):
@@ -107,3 +124,38 @@ def test_valid_lengths_iter():
     assert valid_lengths == {0, 2, 4, 6, 8, 10, 12, 14, 16}
 
     assert [] == list(RandomRegularLanguageGenerator(EMPTY.as_dfa()).valid_lengths_iter())
+
+
+def test_deterministic_generation():
+    ab = dgen(r'(ab)*')
+    assert ab.generate_string(0) == ''
+    assert ab.generate_string(2) == 'ab'
+    assert ab.generate_string(4) == 'abab'
+    assert ab.generate_string(3) is None
+
+    finite = (revex.compile('(aa)*') & revex.compile('a{0,7}'))
+    strings = list(dgen(finite).matching_strings_iter())
+    assert strings == ['', 'aa', 'aaaa', 'aaaaaa']
+
+    assert set(dgen(r'abc').matching_strings_iter()) == {'abc'}
+    assert set(dgen(r'abc|def').matching_strings_iter()) == {'abc', 'def'}
+
+
+@pytest.mark.parametrize('regex', [
+    r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)',
+    r'([a][b][c])*',
+
+    # Email regex, based on http://www.regular-expressions.info/email.html
+    r'[-A-Z0-9._%+]+@([A-Z][A-Z0-9-]*\.)+[A-Z][A-Z]+',
+    # Note: broken because of the trailing dash.
+    r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z][A-Z]+',
+])
+def test_random_walk_matches_regex(regex):
+    actual = re.compile('^%s$' % regex)
+    revex_regex = revex.compile(regex)
+    gen = rgen(revex_regex, alphabet=set(regex))
+    for length in islice(gen.valid_lengths_iter(), 10):
+        for _ in range(10):
+            rand_string = gen.generate_string(length)
+            assert actual.match(rand_string), '%s should match %s' % (regex, rand_string)
+            assert revex_regex.match(rand_string), '%s should match %s' % (regex, rand_string)
