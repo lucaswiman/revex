@@ -1,11 +1,11 @@
 import re
 
 from revex.derivative import (
-    EMPTY, EPSILON, Symbol, Concatenation, Intersection, Union, Complement, Star, RegexVisitor,
+    EMPTY, EPSILON, Concatenation, Intersection, Union, Complement, Star, RegexVisitor,
     CharSet)
 
 
-a, b, c = map(Symbol, 'abc')
+a, b, c = [CharSet[char] for char in 'abc']
 
 TYPE_TO_EXAMPLE = {
     # The __new__ hacking (automatic simplification) makes it slightly
@@ -84,8 +84,8 @@ def test_equality_and_construction():
     assert a | EMPTY == EMPTY | a == a
     assert Star(a) & EPSILON == EPSILON & Star(a) == EPSILON
     assert a & EPSILON == EPSILON & a == EMPTY
-    assert a & Symbol('a') == a
-    assert a | Symbol('a') == a
+    assert a & CharSet(['a']) == a
+    assert a | CharSet(['a']) == a
 
     assert compile(r'[^ab]') & compile(r'[bc]') == compile('c')
     assert compile(r'[^a]') & compile(r'[a]') == EMPTY

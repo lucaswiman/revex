@@ -11,6 +11,7 @@ from revex.derivative import EPSILON, EMPTY
 from revex.dfa import DFA, get_equivalent_states, minimize_dfa, \
     InfiniteLanguageError, EmptyLanguageError
 
+
 example_regex = revex.compile(r'a[abc]*b[abc]*c')
 example_dfa = revex.build_dfa(r'a[abc]*b[abc]*c', alphabet='abcd')
 example_builtin_regex = re.compile(r'^a[abc]*b[abc]*c$')

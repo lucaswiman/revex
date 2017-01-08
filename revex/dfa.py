@@ -8,11 +8,11 @@ from collections import defaultdict
 import six
 import networkx as nx
 
-# All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
-DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
-
 
 logger = logging.getLogger(__name__)
+
+# All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
+DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
 
 
 class RevexError(Exception):
@@ -125,11 +125,11 @@ class DFA(nx.MultiDiGraph):
         except nx.NetworkXUnfeasible:
             # If a topological sort is not possible, this means there is a
             # cycle, and the recognized language is infinite. In this case,
-            # nx raises ``nx.NetworkXUnfeasible``, and we can return `None`.
+            # nx raises ``nx.NetworkXUnfeasible``.
             raise InfiniteLanguageError()
 
         # To show that the longest path must originate at the start node,
-        # consider 4 cases for the position of s in a longest path P from u to
+        # consider 3 cases for the position of s in a longest path P from u to
         # v:
         #
         # (a) At the beginning. Done; this is what we were seeking to prove.
@@ -215,14 +215,13 @@ class DFA(nx.MultiDiGraph):
         """
         Hack to draw the graph and open it in preview. Sorta OS X only-ish.
         """
-        from networkx.drawing.nx_agraph import write_dot
         import os
         if full:
             graph = self
         else:
             graph = self.live_subgraph
 
-        write_dot(graph, '/tmp/foo_%s.dot' % id(graph))
+        nx.drawing.nx_agraph.write_dot(graph, '/tmp/foo_%s.dot' % id(graph))
         os.system(
             'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(graph)))
         os.system('open /tmp/foo_{0}.png'.format(id(graph)))

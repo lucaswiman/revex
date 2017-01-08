@@ -7,7 +7,6 @@ import itertools
 from bisect import bisect_left
 from itertools import count
 
-
 import six
 from six.moves import range
 

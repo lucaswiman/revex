@@ -353,10 +353,6 @@ class CharSet(RegularExpression):
         return 'CharSet(%r, negated=%r)' % (tuple(sorted(self.chars)), self.negated)
 
 
-def Symbol(char):
-    return CharSet([char])
-
-
 @six.python_2_unicode_compatible
 class Union(RegularExpression):
     def __new__(cls, *children):
@@ -546,7 +542,7 @@ class RegexVisitor(NodeVisitor):
 
     def visit_char(self, node, children):
         child, = children
-        return Symbol(child)
+        return CharSet([child])
 
     def visit_set_char(self, node, children):
         char = node.text
@@ -556,11 +552,11 @@ class RegexVisitor(NodeVisitor):
         start, dash, end = children
         return reduce(
             operator.or_,
-            [Symbol(chr(i)) for i in range(ord(start), ord(end) + 1)])
+            [CharSet([chr(i)]) for i in range(ord(start), ord(end) + 1)])
 
     def visit_set_items(self, node, children):
         items = [
-            item if isinstance(item, RegularExpression) else Symbol(item)
+            item if isinstance(item, RegularExpression) else CharSet([item])
             for item, in children]
         return reduce(operator.or_, items)
 
