@@ -8,6 +8,8 @@ from itertools import count
 from six.moves import range
 
 from revex.dfa import construct_integer_dfa
+from revex.dfa import EmptyLanguageError
+from revex.dfa import InfiniteLanguageError
 
 
 class InvalidDistributionError(Exception):
@@ -149,6 +151,15 @@ class RandomRegularLanguageGenerator(object):
         return type(self.alphabet[0])().join(chars)
 
     def valid_lengths_iter(self):
-        for length in count():
+        try:
+            longest_string = self.dfa.longest_string
+            iterator = iter(range(len(longest_string) + 1))
+        except EmptyLanguageError:
+            # No valid lengths.
+            iterator = iter(())
+        except InfiniteLanguageError:
+            iterator = count()
+
+        for length in iterator:
             if self.path_counts[self.dfa.start, length] > 0:
                 yield length

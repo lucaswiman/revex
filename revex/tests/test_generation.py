@@ -4,6 +4,7 @@ from collections import Counter
 from itertools import islice
 
 import revex
+from revex.derivative import EMPTY
 from revex.random_generation import RandomRegularLanguageGenerator
 
 
@@ -100,3 +101,9 @@ def test_valid_lengths_iter():
     sixes = RandomRegularLanguageGenerator(
         (revex.compile('(aa)*') & revex.compile('(aaa)*')).as_dfa(alphabet))
     assert [i * 6 for i in range(50)] == list(islice(sixes.valid_lengths_iter(), 0, 50))
+
+    finite = (revex.compile('(aa)*') & revex.compile('a{0,16}')).as_dfa('a')
+    valid_lengths = set(RandomRegularLanguageGenerator(finite).valid_lengths_iter())
+    assert valid_lengths == {0, 2, 4, 6, 8, 10, 12, 14, 16}
+
+    assert [] == list(RandomRegularLanguageGenerator(EMPTY.as_dfa()).valid_lengths_iter())
