@@ -57,7 +57,7 @@ class LeastFrequentRoundRobin(list):
 
 class PathCounts(list):
 
-    def __init__(self, dfa, numerical_type=float):
+    def __init__(self, dfa):
         """
         Class for maintaining state path counts inside a dfa.
 
@@ -65,21 +65,15 @@ class PathCounts(list):
         path_counts[state][n] is the number of paths of length n from
         state to _some_ final/accepting state.
 
-        Since these numbers can be exponentially large in `n`, it is more
-        efficient to use floating point numbers, but this can be adjusted by
-        specifying the `numerical_type` argument (float or int).
-
         `dfa` MUST have consecutive integer states, with 0 as the start state,
         though this is not validated.
         """
         self.dfa = dfa
-        self.numerical_type = numerical_type
         # Initialize the array with the number of zero-length paths from the
         # state to an accepting state. (i.e. 1 if the state is accepting.)
         self.states = range(len(self.dfa.node))
         super(PathCounts, self).__init__(
-            [numerical_type(1)
-             if self.dfa.node[state]['accepting'] else numerical_type(0)]
+            [1.0 if self.dfa.node[state]['accepting'] else 0.0]
             for state in self.states
         )
         self.longest_path_length = 0
@@ -103,7 +97,7 @@ class PathCounts(list):
         return list.__getitem__(self, item)
 
     def __repr__(self):
-        return 'PathCounts(%r, numerical_type=%r)' % (self.dfa, self.numerical_type)
+        return 'PathCounts(%r)' % self.dfa
 
 
 class BaseGenerator(six.with_metaclass(abc.ABCMeta)):
@@ -120,13 +114,8 @@ class BaseGenerator(six.with_metaclass(abc.ABCMeta)):
         # path_counts[state][n] is the number of paths of length n from
         # state to _some_ final/accepting state. Since these numbers can
         # be exponentially large in `n`, we use floating point numbers for efficiency.
-        self.path_counts = PathCounts(self.dfa, numerical_type=self.numerical_type)
+        self.path_counts = PathCounts(self.dfa)
         self.node_length_to_character_dist = {}
-
-    @abc.abstractproperty
-    def numerical_type(self):
-        # Numerical type used for holding path count information.
-        raise NotImplementedError
 
     @abc.abstractproperty
     def distribution_type(self):
@@ -195,12 +184,10 @@ class RandomRegularLanguageGenerator(BaseGenerator):
     transitions. This is less asymptotically efficient than the "divide & conquer"
     method that was original to that paper, but massively simpler to implement.
     """
-    numerical_type = float
     distribution_type = DiscreteRandomVariable
 
 
 class DeterministicRegularLanguageGenerator(BaseGenerator):
-    numerical_type = int
     distribution_type = LeastFrequentRoundRobin
 
     def matching_strings_iter(self):
