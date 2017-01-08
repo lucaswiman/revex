@@ -7,7 +7,7 @@ import pytest
 
 import revex
 from revex.derivative import EMPTY, RegularExpression
-from revex.random_generation import RandomRegularLanguageGenerator, \
+from revex.generation import RandomRegularLanguageGenerator, \
     DeterministicRegularLanguageGenerator
 
 
