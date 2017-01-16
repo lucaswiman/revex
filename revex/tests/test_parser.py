@@ -133,11 +133,13 @@ def test_character_class_space():
     assert not RegularExpression.compile(r'\S+').match('\n\t ')
     assert not RegularExpression.compile(r'\S+').match('a b')
 
+
 def test_character_class_digit():
     assert RegularExpression.compile(r'\d+').match('123')
     assert not RegularExpression.compile(r'\d+').match('abc')
     assert not RegularExpression.compile(r'\D+').match('123')
     assert RegularExpression.compile(r'\D+').match('abc')
+
 
 def test_character_class_word():
     assert RegularExpression.compile(r'\w+').match('aA0_')

@@ -11,6 +11,8 @@ from __future__ import unicode_literals
 
 import abc
 import operator
+import re
+import string
 from functools import reduce, total_ordering
 
 import six
@@ -353,6 +355,34 @@ class CharSet(RegularExpression):
         return 'CharSet(%r, negated=%r)' % (tuple(sorted(self.chars)), self.negated)
 
 
+charclasses = {
+    c: ''.join(filter(re.compile(r'\%s' % c).match, string.printable))
+    for c in 'swd'
+}
+
+
+@six.python_2_unicode_compatible
+class CharClass(CharSet):
+    def __new__(cls, char):
+        negated = char.isupper()
+        chars = charclasses[char.lower()]
+        instance = super(CharClass, cls).__new__(cls, chars, negated)
+        instance.charclass = char
+        return instance
+
+    @property
+    def identity_tuple(self):
+        return (CharClass.__name__, self.negated, self.charclass)
+
+    def __str__(self):
+        if len(self.chars) == 1 and not self.negated:
+            return six.text_type(self.chars[0])
+        return '\\%s' % self.charclass
+
+    def __repr__(self):
+        return 'CharClass(%r)' % self.charclass
+
+
 @six.python_2_unicode_compatible
 class Union(RegularExpression):
     def __new__(cls, *children):
@@ -477,13 +507,13 @@ REGEX = Grammar(r'''
     optional = literal "?"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = comment / group / any / chars / negative_set / positive_set
+    literal = comment / group / char / negative_set / positive_set
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = "(" sub_re ")"
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
     any = "."
-    chars = char+
-    char = escaped_metachar / non_metachar
+    char = escaped_metachar / charclass / any / non_metachar
+    charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+\[\]()|{}?]"
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
@@ -511,6 +541,14 @@ class RegexVisitor(NodeVisitor):
         lparen, [re], rparen = children
         return re
 
+    def visit_char(self, node, children):
+        [char] = children
+        return char
+
+    def visit_charclass(self, node, children):
+        slash, charclass = children
+        return CharClass(charclass)
+
     def visit_union(self, node, children):
         disjuncts = []
         # This is sort of ugly; parsimonious returns children as a list
@@ -535,19 +573,15 @@ class RegexVisitor(NodeVisitor):
         [child] = children
         return child
 
-    def visit_chars(self, node, children):
-        return reduce(operator.add, children)
-
     def visit_escaped_metachar(self, node, children):
         slash, char = children
-        return char
+        return CharSet([char])
+
+    def visit_non_metachar(self, node, children):
+        return CharSet(node.text)
 
     def visit_any(self, node, children):
         return DOT
-
-    def visit_char(self, node, children):
-        child, = children
-        return CharSet([child])
 
     def visit_set_char(self, node, children):
         char = node.text
