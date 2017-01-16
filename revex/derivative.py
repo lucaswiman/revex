@@ -477,7 +477,8 @@ REGEX = Grammar(r'''
     optional = literal "?"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = group / any / chars / negative_set / positive_set
+    literal = comment / group / any / chars / negative_set / positive_set
+    comment = "(?#" ~"[^)]*" ")"
     group = "(" sub_re ")"
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
     any = "."
@@ -501,6 +502,10 @@ class RegexVisitor(NodeVisitor):
 
     def visit_concatenation(self, node, children):
         return reduce(operator.add, [re for [re] in children])
+
+    def visit_comment(self, node, children):
+        # Just ignore the comment text and return a zero-character regex.
+        return EPSILON
 
     def visit_group(self, node, children):
         lparen, [re], rparen = children
