@@ -124,3 +124,34 @@ def test_repeat():
     assert not regex.match('a' * 3 + 'q')
 
     assert RegularExpression.compile('a{3}') == RegularExpression.compile('aaa')
+
+
+def test_character_class_space():
+    assert RegularExpression.compile(r'\s+').match('\n\t ')
+    assert not RegularExpression.compile(r'\s+').match('\\s')
+    assert RegularExpression.compile(r'\S+').match('ab')
+    assert not RegularExpression.compile(r'\S+').match('\n\t ')
+    assert not RegularExpression.compile(r'\S+').match('a b')
+
+
+def test_character_class_digit():
+    assert RegularExpression.compile(r'\d+').match('123')
+    assert not RegularExpression.compile(r'\d+').match('abc')
+    assert not RegularExpression.compile(r'\D+').match('123')
+    assert RegularExpression.compile(r'\D+').match('abc')
+
+
+def test_character_class_word():
+    assert RegularExpression.compile(r'\w+').match('aA0_')
+    assert not RegularExpression.compile(r'\W+').match('aA0_')
+
+
+def test_comment():
+    assert RegularExpression.compile(r'f(?# comment )oo').match('foo')
+    assert RegularExpression.compile(r'f(?# also (a comment \) )oo').match('foo')
+
+
+def test_noncapturing_group():
+    # Non-capturing groups aren't semantically meaningful yet, but shouldn't
+    # lead to syntax errors.
+    assert RegularExpression.compile(r'f(?:oo)').match('foo')
