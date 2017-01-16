@@ -145,4 +145,5 @@ def test_character_class_word():
 
 
 def test_comment():
-    assert RegularExpression.compile(r'f(?# nothing to see here)oo').match('foo')
+    assert RegularExpression.compile(r'f(?# comment )oo').match('foo')
+    assert RegularExpression.compile(r'f(?# also (a comment \) )oo').match('foo')
