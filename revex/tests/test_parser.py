@@ -149,3 +149,9 @@ def test_character_class_word():
 def test_comment():
     assert RegularExpression.compile(r'f(?# comment )oo').match('foo')
     assert RegularExpression.compile(r'f(?# also (a comment \) )oo').match('foo')
+
+
+def test_noncapturing_group():
+    # Non-capturing groups aren't semantically meaningful yet, but shouldn't
+    # lead to syntax errors.
+    assert RegularExpression.compile(r'f(?:oo)').match('foo')
