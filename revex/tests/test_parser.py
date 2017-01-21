@@ -125,6 +125,9 @@ def test_repeat():
 
     assert RegularExpression.compile('a{3}') == RegularExpression.compile('aaa')
 
+    assert RegularExpression.compile('ba{3}') == RegularExpression.compile('baaa')
+    assert RegularExpression.compile('(ba){3}') == RegularExpression.compile('bababa')
+
 
 def test_character_class_space():
     assert RegularExpression.compile(r'\s+').match('\n\t ')
