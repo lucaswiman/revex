@@ -1,15 +1,29 @@
+import re
+
 from revex.derivative import RegularExpression
 
 
+class RE(object):
+    def __init__(self, pattern):
+        self.base_re = re.compile(r'^(%s)$' % pattern)
+        self.re = RegularExpression.compile(pattern)
+
+    def match(self, string):
+        if bool(self.base_re.match(string)) != self.re.match(string):
+            from pytest import set_trace; set_trace()
+        assert bool(self.base_re.match(string)) == self.re.match(string)
+        return self.re.match(string)
+
+
 def test_string_literal_regex():
-    regex = RegularExpression.compile('abc')
+    regex = RE('abc')
     assert regex.match('abc')
     assert not regex.match('abcd')
     assert not regex.match('ab')
 
 
 def test_star():
-    regex = RegularExpression.compile('a*')
+    regex = RE('a*')
     assert regex.match('')
     assert regex.match('a')
     assert regex.match('aa')
@@ -17,7 +31,7 @@ def test_star():
 
 
 def test_plus():
-    regex = RegularExpression.compile('a+')
+    regex = RE('a+')
     assert not regex.match('')
     assert regex.match('a')
     assert regex.match('aa')
@@ -25,7 +39,7 @@ def test_plus():
 
 
 def test_union():
-    regex = RegularExpression.compile('a|b|c')
+    regex = RE('a|b|c')
     assert regex.match('a')
     assert regex.match('b')
     assert regex.match('c')
@@ -33,14 +47,14 @@ def test_union():
 
 
 def test_group():
-    regex = RegularExpression.compile('(ab)+')
+    regex = RE('(ab)+')
     assert regex.match('ab')
     assert regex.match('abab')
     assert not regex.match('aba')
 
 
 def test_char_range():
-    regex = RegularExpression.compile('[-a-z1-9]')
+    regex = RE('[-a-z1-9]')
     assert regex.match('a')
     assert regex.match('b')
     assert regex.match('z')
@@ -51,7 +65,7 @@ def test_char_range():
 
 
 def test_initial_substring():
-    regex = RegularExpression.compile('[a][b][c][d][e]')
+    regex = RE('[a][b][c][d][e]')
     assert regex.match('abcde')
     # This terminates the search before reaching the exit node of the graph.
     # We shouldn't match or continue trying to traverse the string.
@@ -59,26 +73,26 @@ def test_initial_substring():
 
 
 def test_that_various_regexes_should_parse():
-    m1 = RegularExpression.compile('a+(bc)*')
+    m1 = RE('a+(bc)*')
     assert m1.match('aaa')
     assert m1.match('abcbc')
-    m2 = RegularExpression.compile('a+(bc)*[0-9]')
+    m2 = RE('a+(bc)*[0-9]')
     assert m2.match('abc0')
     assert not m2.match('abcc0')
-    m3 = RegularExpression.compile('(a[b-c]*|[x-z]+)')
+    m3 = RE('(a[b-c]*|[x-z]+)')
     assert m3.match('abbb')
     assert m3.match('zxy')
     assert not m3.match('ax')
 
 
 def test_dot_any():
-    m = RegularExpression.compile('.+')
+    m = RE('.+')
     assert m.match('a')
     assert m.match('b')
 
 
 def test_inverted_charset():
-    m = RegularExpression.compile('[^abc]')
+    m = RE('[^abc]')
     assert m.match('d')
     assert not m.match('a')
     assert not m.match('b')
@@ -86,7 +100,7 @@ def test_inverted_charset():
 
 
 def test_inverted_range():
-    m = RegularExpression.compile('[^a-c]')
+    m = RE('[^a-c]')
     assert m.match('d')
     assert not m.match('dlaskdfmlksadmfl')
     assert not m.match('a')
@@ -95,7 +109,7 @@ def test_inverted_range():
 
 
 def test_inverted_range_and_charset():
-    m = RegularExpression.compile('[^h-jab-def]')
+    m = RE('[^h-jab-def]')
     for c in 'gklmnopqrstuvwxyz':
         assert m.match(c)
     for c in 'abcdefhij':
@@ -105,11 +119,11 @@ def test_inverted_range_and_charset():
 
 
 def test_open_ended_range():
-    m = RegularExpression.compile('a{,5}')
+    m = RE('a{,5}')
     for i in range(6):
         assert m.match('a' * i)
     assert not m.match('a' * 6)
-    m2 = RegularExpression.compile('a{3,}')
+    m2 = RE('a{3,}')
     for i in range(3):
         assert not m2.match('a' * i)
     for i in range(3, 10):
@@ -117,44 +131,44 @@ def test_open_ended_range():
 
 
 def test_repeat():
-    regex = RegularExpression.compile('a{0,2}[a-z]')
+    regex = RE('a{0,2}[a-z]')
     assert regex.match('q')
     assert regex.match('a' * 1 + 'q')
     assert regex.match('a' * 2 + 'q')
     assert not regex.match('a' * 3 + 'q')
 
-    assert RegularExpression.compile('a{3}') == RegularExpression.compile('aaa')
+    assert RE('a{3}') == RE('aaa')
 
-    assert RegularExpression.compile('ba{3}') == RegularExpression.compile('baaa')
-    assert RegularExpression.compile('(ba){3}') == RegularExpression.compile('bababa')
+    assert RE('ba{3}') == RE('baaa')
+    assert RE('(ba){3}') == RE('bababa')
 
 
 def test_character_class_space():
-    assert RegularExpression.compile(r'\s+').match('\n\t ')
-    assert not RegularExpression.compile(r'\s+').match('\\s')
-    assert RegularExpression.compile(r'\S+').match('ab')
-    assert not RegularExpression.compile(r'\S+').match('\n\t ')
-    assert not RegularExpression.compile(r'\S+').match('a b')
+    assert RE(r'\s+').match('\n\t ')
+    assert not RE(r'\s+').match('\\s')
+    assert RE(r'\S+').match('ab')
+    assert not RE(r'\S+').match('\n\t ')
+    assert not RE(r'\S+').match('a b')
 
 
 def test_character_class_digit():
-    assert RegularExpression.compile(r'\d+').match('123')
-    assert not RegularExpression.compile(r'\d+').match('abc')
-    assert not RegularExpression.compile(r'\D+').match('123')
-    assert RegularExpression.compile(r'\D+').match('abc')
+    assert RE(r'\d+').match('123')
+    assert not RE(r'\d+').match('abc')
+    assert not RE(r'\D+').match('123')
+    assert RE(r'\D+').match('abc')
 
 
 def test_character_class_word():
-    assert RegularExpression.compile(r'\w+').match('aA0_')
-    assert not RegularExpression.compile(r'\W+').match('aA0_')
+    assert RE(r'\w+').match('aA0_')
+    assert not RE(r'\W+').match('aA0_')
 
 
 def test_comment():
-    assert RegularExpression.compile(r'f(?# comment )oo').match('foo')
-    assert RegularExpression.compile(r'f(?# also (a comment \) )oo').match('foo')
+    assert RE(r'f(?# comment )oo').match('foo')
+    assert RE(r'f(?# also (a comment \) )oo').match('foo')
 
 
 def test_noncapturing_group():
     # Non-capturing groups aren't semantically meaningful yet, but shouldn't
     # lead to syntax errors.
-    assert RegularExpression.compile(r'f(?:oo)').match('foo')
+    assert RE(r'f(?:oo)').match('foo')
