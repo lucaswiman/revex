@@ -86,7 +86,7 @@ class DFA(nx.MultiDiGraph):
 
         - Remove nodes which cannot reach an accepting state (see
           `_acceptable_subgraph` above).
-        - Language is infinite iff the remaining graph is acyclic.
+        - Language is finite iff the remaining graph is acyclic.
         """
         return nx.is_directed_acyclic_graph(self._acceptable_subgraph)
 
@@ -127,8 +127,7 @@ class DFA(nx.MultiDiGraph):
             raise InfiniteLanguageError()
 
         # To show that the longest path must originate at the start node,
-        # consider 3 cases for the position of s in a longest path P from u to
-        # v:
+        # consider 3 cases for the position of s in a longest path P from u to v:
         #
         # (a) At the beginning. Done; this is what we were seeking to prove.
         # (b) On the path, but not at the beginning. In this case, u is
@@ -298,7 +297,7 @@ class RegexDFA(DFA):
 
 def get_equivalent_states(dfa):
     """
-    Return equivalent states in the DFA, as constructed using the Hopcroft's
+    Return equivalent states in the DFA, as constructed using Hopcroft's
     algorithm. See https://en.wikipedia.org/wiki/DFA_minimization
 
     See also http://www8.cs.umu.se/kurser/TDBC92/VT06/final/1.pdf and

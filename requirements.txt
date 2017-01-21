@@ -2,4 +2,3 @@ networkx
 parsimonious>=0.7.0
 six
 pygraphviz
-hypothesis

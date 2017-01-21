@@ -275,7 +275,7 @@ class Intersection(RegularExpression):
 
         if charset and negated_charset:
             # If we have a charset and a negated charset, then compute their
-            # intersection.
+            # difference.
             chars = set(charset.chars) - set(negated_charset.chars)
             if not chars:  # The intersection is empty, so simplify to that.
                 return EMPTY

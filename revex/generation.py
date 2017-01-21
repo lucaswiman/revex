@@ -51,7 +51,7 @@ class LeastFrequentRoundRobin(list):
         self.sort(key=counts.__getitem__)  # Sort indices from least to most frequent.
         self.chooser = itertools.cycle(self)
 
-    def draw(self):
+    def draw(self, random=random):
         return next(self.chooser)
 
 
