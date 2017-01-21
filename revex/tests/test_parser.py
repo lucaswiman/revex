@@ -1,6 +1,8 @@
 import re
 
-from revex.derivative import RegularExpression
+import pytest
+
+from revex.derivative import RegularExpression, REGEX
 
 
 class RE(object):
@@ -9,8 +11,6 @@ class RE(object):
         self.re = RegularExpression.compile(pattern)
 
     def match(self, string):
-        if bool(self.base_re.match(string)) != self.re.match(string):
-            from pytest import set_trace; set_trace()
         assert bool(self.base_re.match(string)) == self.re.match(string)
         return self.re.match(string)
 
@@ -137,10 +137,10 @@ def test_repeat():
     assert regex.match('a' * 2 + 'q')
     assert not regex.match('a' * 3 + 'q')
 
-    assert RE('a{3}') == RE('aaa')
+    assert RegularExpression.compile('a{3}') == RegularExpression.compile('aaa')
 
-    assert RE('ba{3}') == RE('baaa')
-    assert RE('(ba){3}') == RE('bababa')
+    assert RegularExpression.compile('ba{3}') == RegularExpression.compile('baaa')
+    assert RegularExpression.compile('(ba){3}') == RegularExpression.compile('bababa')
 
 
 def test_character_class_space():
@@ -172,3 +172,20 @@ def test_noncapturing_group():
     # Non-capturing groups aren't semantically meaningful yet, but shouldn't
     # lead to syntax errors.
     assert RE(r'f(?:oo)').match('foo')
+
+
+@pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
+def test_lookaround_grammar():
+    assert REGEX.parse(r'foo(?=bar).*')
+    assert REGEX.parse(r'foo(?=bar)')
+    assert REGEX.parse(r'foo(?=(ab)*)')
+    assert REGEX.parse(r'foo(?!bar)')
+    assert REGEX.parse(r'.*(<=bar)foo')
+    assert REGEX.parse(r'.*(<!bar)foo')
+
+
+@pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
+def test_lookaround_match():
+    assert RE(r'foo(?=bar).*').match('foobarasdf')
+    assert RE(r'foo(?=bar).*').match('foobar')
+    assert not RE(r'foo(?=bar)').match('foobar')
