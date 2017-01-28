@@ -21,7 +21,7 @@ from typing import Tuple  # noqa
 import six
 from parsimonious import NodeVisitor, Grammar
 
-from revex.dfa import AlphabetType, Character, DFA  # noqa
+from revex.dfa import AlphabetType, String, DFA  # noqa
 from .dfa import RegexDFA, DEFAULT_ALPHABET
 
 
@@ -71,10 +71,10 @@ class RegularExpression(object):
         """
         raise NotImplementedError
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         raise NotImplementedError
 
-    def match(self, string):  # type: (AnyStr) -> bool
+    def match(self, string):  # type: (String) -> bool
         regex = self
         for i in range(len(string)):
             regex = regex.derivative(string[i:i+1])
@@ -117,7 +117,7 @@ class _Empty(RegularExpression):
 
     accepting = False
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return EMPTY
 
     def __str__(self):
@@ -140,7 +140,7 @@ class _Epsilon(RegularExpression):
 
     accepting = True
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return EMPTY
 
     def __str__(self):
@@ -166,7 +166,7 @@ class _Dot(RegularExpression):
 
     accepting = False
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return EPSILON
 
     def __str__(self):
@@ -283,7 +283,7 @@ class Intersection(RegularExpression):
         if charset and negated_charset:
             # If we have a charset and a negated charset, then compute their
             # difference.
-            chars = set(charset.chars) - set(negated_charset.chars)
+            chars = set(charset.chars) - set(negated_charset.chars)  # type: Set[String]
             if not chars:  # The intersection is empty, so simplify to that.
                 return EMPTY
             else:
@@ -294,14 +294,15 @@ class Intersection(RegularExpression):
             # Now restrict chars down to those which all the other conjuncts can
             # accept. These are exactly the chars recognized by this regex, so
             # just return the charset.
-            chars = {
-                char for char in charset.chars
-                if all(child.derivative(char).accepting for child in children)
-            }
-            if not chars:
+            acceptable_chars = {
+                char for char in charset.chars  # type: ignore
+                if all(
+                    child.derivative(char).accepting for child in children)  # type: ignore
+            }  # type: Set[String]
+            if not acceptable_chars:
                 return EMPTY
             else:
-                return CharSet(chars)
+                return CharSet(acceptable_chars)
         elif negated_charset:
             children.add(charset or negated_charset)
 
@@ -322,7 +323,7 @@ class Intersection(RegularExpression):
     def accepting(self):
         return all(child.accepting for child in self.children)
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return reduce(operator.and_, (child.derivative(char) for child in self.children))
 
     def __str__(self):
@@ -335,7 +336,7 @@ class Intersection(RegularExpression):
 @six.python_2_unicode_compatible
 class CharSet(RegularExpression):
     negated = None  # type: bool
-    chars = None  # type: Tuple[Character, ...]
+    chars = None  # type: Tuple[String, ...]
 
     def __new__(cls, chars, negated=False):
         instance = super(CharSet, cls).__new__(cls)
@@ -346,7 +347,7 @@ class CharSet(RegularExpression):
     accepting = False
     is_atomic = True
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         if self.negated:
             return EMPTY if char in self.chars else EPSILON
         else:
@@ -430,7 +431,7 @@ class Union(RegularExpression):
     def accepting(self):
         return any(child.accepting for child in self.children)
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return reduce(operator.or_, (child.derivative(char) for child in self.children))
 
     @property
@@ -472,7 +473,7 @@ class Complement(RegularExpression):
     def accepting(self):
         return not self.regex.accepting
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return ~self.regex.derivative(char)
 
     @property
@@ -499,7 +500,7 @@ class Star(RegularExpression):
 
     accepting = True
 
-    def derivative(self, char):  # type: (Character) -> RegularExpression
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return self.regex.derivative(char) + self
 
     @property

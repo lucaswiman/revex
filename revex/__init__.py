@@ -9,5 +9,6 @@ from .dfa import DFA, AlphabetType  # noqa
 compile = RegularExpression.compile
 
 
-def build_dfa(regex, alphabet=DEFAULT_ALPHABET):  # type: (AnyStr, AlphabetType) -> DFA
+def build_dfa(regex, alphabet=DEFAULT_ALPHABET):
+    # type: (AnyStr, AlphabetType) -> DFA[RegularExpression, AnyStr]
     return compile(regex).as_dfa(alphabet=alphabet)

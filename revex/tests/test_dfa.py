@@ -1,8 +1,11 @@
 from __future__ import unicode_literals
 
 import re
+from typing import Set  # noqa
+from typing import Tuple  # noqa
 
 import pytest
+import six  # noqa
 from hypothesis import given, example
 from hypothesis import strategies as st
 
@@ -32,7 +35,7 @@ def test_dfa_matches_builtin(s):
 def test_equivalent_state_computation():
     # Construct a DFA where all states are equivalent to each other.
     alphabet = '01'
-    dfa = DFA(0, True, alphabet=alphabet)
+    dfa = DFA(0, True, alphabet=alphabet)  # type: DFA[int, six.text_type]
     dfa.add_state(1, True)
     dfa.add_state(2, True)
     dfa.add_state(3, True)
@@ -44,7 +47,7 @@ def test_equivalent_state_computation():
     dfa.add_transition(2, 2, '1')
     dfa.add_transition(3, 0, '0')
     dfa.add_transition(3, 3, '1')
-    equivalent = get_equivalent_states(dfa)
+    equivalent = get_equivalent_states(dfa)  # type: Set[Tuple[int, int]]
     states = [0, 1, 2, 3]
     assert equivalent == {(p, q) for p in states for q in states}
 
@@ -57,7 +60,7 @@ def test_equivalent_state_example():
     # https://www.tutorialspoint.com/automata_theory/dfa_minimization.htm
     alphabet = '01'
     a, b, c, d, e, f = states = 'abcdef'
-    dfa = DFA(a, False, alphabet=alphabet)
+    dfa = DFA(a, False, alphabet=alphabet)  # type: DFA[six.text_type, six.text_type]
     dfa.add_state(b, False)
     dfa.add_state(c, True)
     dfa.add_state(d, True)
@@ -94,12 +97,12 @@ def test_equivalent_state_example():
     expected |= {(x, x) for x in states}
     expected |= {(p, q) for (q, p) in expected}
 
-    equivalent = get_equivalent_states(dfa)
+    equivalent = get_equivalent_states(dfa)  # type: ignore
     assert equivalent == expected
     new_dfa = minimize_dfa(dfa)
     assert not new_dfa.find_invalid_nodes()
 
-    expected_dfa = DFA('ab', False, alphabet=alphabet)
+    expected_dfa = DFA('ab', False, alphabet=alphabet)  # type: DFA[six.text_type, six.text_type]
     expected_dfa.add_state('cde', True)
     expected_dfa.add_state('f', False)
 

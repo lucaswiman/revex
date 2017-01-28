@@ -4,15 +4,18 @@ from __future__ import unicode_literals
 import logging
 import re
 from collections import defaultdict
+from typing import Any  # noqa
+from typing import Dict  # noqa
+from typing import Optional  # noqa
+from typing import Sequence  # noqa
+from typing import Set  # noqa
+from typing import Union  # noqa
+from typing import Generic
 
 import six
 import networkx as nx
 import typing  # noqa
 from six.moves import range
-from typing import AnyStr  # noqa
-from typing import Dict  # noqa
-from typing import Optional  # noqa
-from typing import Sequence  # noqa
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +35,8 @@ class InfiniteLanguageError(RevexError):
 
 NodeType = typing.TypeVar('NodeType')
 
-Character = typing.Union[six.binary_type, six.text_type]
+Character = typing.TypeVar('Character', six.binary_type, six.text_type)
+String = Union[six.binary_type, six.text_type]
 
 AlphabetType = Sequence[Character]
 
@@ -41,11 +45,13 @@ DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 
 # type: AlphabetType
 
 
-class DFA(nx.MultiDiGraph):
+class DFA(Generic[NodeType, Character], nx.MultiDiGraph):
+    node = None  # type: Dict[NodeType, Dict[Any, Any]]
+
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
         # type: (NodeType, bool, AlphabetType) -> None
         super(DFA, self).__init__()
-        self.start = start
+        self.start = start  # type: NodeType
         self.add_state(start, start_accepting)
 
         # Index of (state, char): next state transitions. In the literature, this
@@ -106,7 +112,7 @@ class DFA(nx.MultiDiGraph):
         return nx.is_directed_acyclic_graph(self._acceptable_subgraph)
 
     @property
-    def longest_string(self):
+    def longest_string(self):  # type: () -> Character
         """
         Returns an example of a maximally long string recognized by this DFA.
 
@@ -161,7 +167,7 @@ class DFA(nx.MultiDiGraph):
         for state1, state2 in zip(longest_path, longest_path[1:]):
             edges = self.succ[state1][state2]
             chars.append(next(six.itervalues(edges))['transition'])
-        return ''.join(chars)
+        return type(self.alphabet[0])().join(chars)
 
     @property
     def live_subgraph(self):  # type: () -> nx.MultiDiGraph
@@ -218,7 +224,7 @@ class DFA(nx.MultiDiGraph):
             }
         )
 
-    def match(self, string):  # type: (AnyStr) -> bool
+    def match(self, string):  # type: (Character) -> bool
         node = self.start
         for i in range(len(string)):
             node = self.delta[node][string[i:i + 1]]
@@ -278,9 +284,6 @@ class DFA(nx.MultiDiGraph):
                     to_explore.append((self_next_node, other_next_node))
                     isomorphism[self_next_node] = other_next_node
                 elif isomorphism[self_next_node] != other_next_node:
-                    logger.debug('Found inconsistent mapping %r->%r and %r via %s',
-                                 self_node, other_next_node, isomorphism[self_next_node],
-                                 char)
                     return None
         assert len(isomorphism) == len(self.node)
         return isomorphism
@@ -314,6 +317,7 @@ class RegexDFA(DFA):
 
 
 def get_equivalent_states(dfa):
+    # type: (DFA[NodeType, Character]) -> Set[tuple[NodeType, NodeType]]
     """
     Return equivalent states in the DFA, as constructed using Hopcroft's
     algorithm. See https://en.wikipedia.org/wiki/DFA_minimization
@@ -363,7 +367,7 @@ def get_equivalent_states(dfa):
     return equivalent | {(q, p) for p, q in equivalent}
 
 
-def minimize_dfa(dfa):
+def minimize_dfa(dfa):  # type: (DFA) -> DFA
     """
     Constructs a minimized DFA by combining equivalent states.
     """
