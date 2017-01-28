@@ -13,14 +13,14 @@ import operator
 import re
 import string
 from functools import reduce, total_ordering
-from typing import AnyStr
-from typing import Set
-from typing import Tuple
+from typing import AnyStr  # noqa
+from typing import Set  # noqa
+from typing import Tuple  # noqa
 
 import six
 from parsimonious import NodeVisitor, Grammar
 
-from revex.dfa import AlphabetType, Character, DFA
+from revex.dfa import AlphabetType, Character, DFA  # noqa
 from .dfa import RegexDFA, DEFAULT_ALPHABET
 
 
@@ -333,7 +333,8 @@ class Intersection(RegularExpression):
 @six.python_2_unicode_compatible
 class CharSet(RegularExpression):
     negated = None  # type: bool
-    chars = None  # type: tuple[Character]
+    chars = None  # type: Tuple[Character, ...]
+
     def __new__(cls, chars, negated=False):
         instance = super(CharSet, cls).__new__(cls)
         instance.chars = tuple(sorted(chars))

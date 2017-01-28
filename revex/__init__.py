@@ -1,8 +1,9 @@
-from typing import AnyStr
+from typing import AnyStr  # noqa
 
 
 from .derivative import RegularExpression
-from .dfa import DEFAULT_ALPHABET, DFA, AlphabetType
+from .dfa import DEFAULT_ALPHABET
+from .dfa import DFA, AlphabetType  # noqa
 
 
 compile = RegularExpression.compile

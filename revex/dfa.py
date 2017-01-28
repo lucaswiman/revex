@@ -7,11 +7,11 @@ from collections import defaultdict
 
 import six
 import networkx as nx
-import typing
+import typing  # noqa
 from six.moves import range
-from typing import Dict
-from typing import Sequence
-from typing import AnyStr
+from typing import Dict  # noqa
+from typing import Sequence  # noqa
+from typing import AnyStr  # noqa
 
 
 logger = logging.getLogger(__name__)
@@ -199,7 +199,8 @@ class DFA(nx.MultiDiGraph):
             color='green' if accepting else 'black',
         )
 
-    def add_transition(self, from_state, to_state, char):  # type: (NodeType, NodeType, Character) -> None
+    def add_transition(self, from_state, to_state, char):
+        # type: (NodeType, NodeType, Character) -> None
         if not (self.has_node(from_state) and self.has_node(to_state)):
             raise ValueError('States must be added prior to transitions.')
         if self.delta[from_state].get(char) == to_state:
@@ -293,7 +294,7 @@ class RegexDFA(DFA):
         matches that regular expression. In particular, the "start" node is
         labeled with `regex`.
         """
-        from revex.derivative import RegularExpression
+        from revex.derivative import RegularExpression  # noqa
         super(RegexDFA, self).__init__(
             start=regex,
             start_accepting=regex.accepting,

@@ -7,9 +7,9 @@ from bisect import bisect_left
 from itertools import count
 
 from six.moves import range
-from typing import Tuple, Dict, List, Union
+from typing import Tuple, Dict, List, Union  # noqa
 
-from revex.dfa import DFA
+from revex.dfa import DFA  # noqa
 from revex.dfa import IntegerDFA
 from revex.dfa import EmptyLanguageError
 from revex.dfa import InfiniteLanguageError
@@ -21,6 +21,7 @@ class InvalidDistributionError(Exception):
 
 class _Distribution(list):
     pass
+
 
 class DiscreteRandomVariable(_Distribution):
     def __init__(self, counts):  # type: (List[float]) -> None
