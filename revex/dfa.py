@@ -3,21 +3,18 @@ from __future__ import unicode_literals
 
 import logging
 import re
-import sys
 from collections import defaultdict
 
 import six
 import networkx as nx
 import typing
+from six.moves import range
 from typing import Dict
 from typing import Sequence
 from typing import AnyStr
 
 
 logger = logging.getLogger(__name__)
-
-# All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
-DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
 
 
 class RevexError(Exception):
@@ -34,12 +31,13 @@ class InfiniteLanguageError(RevexError):
 
 NodeType = typing.TypeVar('NodeType')
 
-if sys.version_info < (3, ):
-    Character = typing.Union[str, unicode]
-else:
-    Character = typing.Union[str]
+Character = typing.Union[six.binary_type, six.text_type]
 
 AlphabetType = Sequence[Character]
+
+# All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
+DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
+# type: AlphabetType
 
 
 class DFA(nx.MultiDiGraph):
@@ -53,7 +51,7 @@ class DFA(nx.MultiDiGraph):
         # is usually denoted 𝛿.
         self.delta = defaultdict(dict)  # type: defaultdict[NodeType, Dict[Character, NodeType]]
 
-        self.alphabet = alphabet
+        self.alphabet = alphabet  # type: AlphabetType
 
     @property
     def as_multidigraph(self):  # type: () -> nx.MultiDiGraph
@@ -220,8 +218,8 @@ class DFA(nx.MultiDiGraph):
 
     def match(self, string):  # type: (AnyStr) -> bool
         node = self.start
-        for char in string:
-            node = self.delta[node][char]
+        for i in range(len(string)):
+            node = self.delta[node][string[i:i + 1]]
         return self.node[node]['accepting']
 
     def _draw(self, full=False):  # pragma: no cover
