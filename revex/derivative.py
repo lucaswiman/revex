@@ -199,7 +199,7 @@ class Concatenation(RegularExpression):
         elif len(children) == 1:
             return children[0]
         else:
-            instance = super(Concatenation, cls).__new__(cls)  # type: Concatenation
+            instance = super(Concatenation, cls).__new__(cls)
             instance.children = children
             return instance
 
