@@ -70,13 +70,13 @@ class RegularExpression(object):
         """
         raise NotImplementedError
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         raise NotImplementedError
 
     def match(self, string):  # type: (AnyStr) -> bool
         regex = self
-        for char in string:
-            regex = regex.derivative(char)
+        for i in range(len(string)):
+            regex = regex.derivative(string[i:i+1])
         return regex.accepting
 
     @property
