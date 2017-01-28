@@ -9,20 +9,23 @@ See also https://en.wikipedia.org/wiki/Brzozowski_derivative
 """
 from __future__ import unicode_literals
 
-import abc
 import operator
 import re
 import string
 from functools import reduce, total_ordering
+from typing import AnyStr
+from typing import Set
+from typing import Tuple
 
 import six
 from parsimonious import NodeVisitor, Grammar
 
+from revex.dfa import AlphabetType, Character, DFA
 from .dfa import RegexDFA, DEFAULT_ALPHABET
 
 
 @total_ordering
-class RegularExpression(six.with_metaclass(abc.ABCMeta)):
+class RegularExpression(object):
     """
     A generalized regular expression, supporting:
         - ∅:               EMPTY
@@ -37,10 +40,10 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     is_atomic = True
 
     @classmethod
-    def compile(self, regex):
+    def compile(self, regex):  # type: (AnyStr) -> RegularExpression
         return RegexVisitor().parse(regex)
 
-    def as_dfa(self, alphabet=DEFAULT_ALPHABET):
+    def as_dfa(self, alphabet=DEFAULT_ALPHABET):  # type: (AlphabetType) -> DFA
         return RegexDFA(self, alphabet=alphabet)
 
     def __add__(self, other):
@@ -55,23 +58,22 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     def __invert__(self):
         return Complement(self)
 
-    def __mul__(self, repeat):
+    def __mul__(self, repeat):  # type: (int) -> RegularExpression
         return EPSILON if repeat == 0 else reduce(operator.add, [self] * repeat)
 
     __rmul__ = __mul__
 
-    @abc.abstractproperty
-    def accepting(self):
+    @property
+    def accepting(self):  # type: () -> bool
         """
         Whether an end-string is accepted with this regex.
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     def derivative(self, char):
         raise NotImplementedError
 
-    def match(self, string):
+    def match(self, string):  # type: (AnyStr) -> bool
         regex = self
         for char in string:
             regex = regex.derivative(char)
@@ -178,7 +180,9 @@ DOT = _Dot()
 
 @six.python_2_unicode_compatible
 class Concatenation(RegularExpression):
-    def __new__(cls, *children):
+    children = None  # type: Tuple[RegularExpression, ...]
+
+    def __new__(cls, *children):  # type: (*RegularExpression) -> RegularExpression
         flattened_children = []
         for child in children:
             if isinstance(child, Concatenation):
@@ -186,7 +190,7 @@ class Concatenation(RegularExpression):
                     flattened_children.append(subchild)
             else:
                 flattened_children.append(child)
-        children = flattened_children
+        children = tuple(flattened_children)
         if EMPTY in children:
             return EMPTY
         children = tuple(child for child in children if child is not EPSILON)
@@ -195,7 +199,7 @@ class Concatenation(RegularExpression):
         elif len(children) == 1:
             return children[0]
         else:
-            instance = super(Concatenation, cls).__new__(cls)
+            instance = super(Concatenation, cls).__new__(cls)  # type: Concatenation
             instance.children = children
             return instance
 
@@ -242,14 +246,15 @@ class Concatenation(RegularExpression):
 
 @six.python_2_unicode_compatible
 class Intersection(RegularExpression):
-    def __new__(cls, *children):
-        flattened_children = set()
-        for child in children:
+    children = None  # type: Tuple[RegularExpression, ...]
+
+    def __new__(cls, *children_tuple):  # type: (*RegularExpression) -> RegularExpression
+        children = set()  # type: Set[RegularExpression]
+        for child in children_tuple:
             if isinstance(child, Intersection):
-                flattened_children |= set(child.children)
+                children |= set(child.children)
             else:
-                flattened_children.add(child)
-        children = flattened_children
+                children.add(child)
         if EMPTY in children:
             return EMPTY
         elif EPSILON in children:
@@ -327,6 +332,8 @@ class Intersection(RegularExpression):
 
 @six.python_2_unicode_compatible
 class CharSet(RegularExpression):
+    negated = None  # type: bool
+    chars = None  # type: tuple[Character]
     def __new__(cls, chars, negated=False):
         instance = super(CharSet, cls).__new__(cls)
         instance.chars = tuple(sorted(chars))
@@ -385,31 +392,33 @@ class CharClass(CharSet):
 
 @six.python_2_unicode_compatible
 class Union(RegularExpression):
-    def __new__(cls, *children):
-        flattened_children = set()
+    children = None  # type: Tuple[RegularExpression, ...]
+
+    def __new__(cls, *children):  # type: (*RegularExpression) -> RegularExpression
+        flattened_children = set()  # type: Set[RegularExpression]
         for child in children:
             if isinstance(child, Union):
                 flattened_children |= set(child.children)
             else:
                 flattened_children.add(child)
-        children = flattened_children
-        if children == {EMPTY}:
+        if flattened_children == {EMPTY}:
             return EMPTY
         elif EMPTY in children:
-            children.remove(EMPTY)
+            flattened_children.remove(EMPTY)
 
         char_literals = {
-            child for child in children
+            child for child in flattened_children
             if (isinstance(child, CharSet) and not child.negated)}
         if char_literals:
             chars = {char for literal in char_literals for char in literal.chars}
-            children = children - char_literals
-            children.add(CharSet(chars))
+            flattened_children = flattened_children - char_literals
+            flattened_children.add(CharSet(chars))
+        children = tuple(sorted(flattened_children))
         if len(children) == 1:
-            return children.pop()
+            return children[0]
 
         instance = super(Union, cls).__new__(cls)
-        instance.children = tuple(sorted(children))
+        instance.children = children
         return instance
 
     is_atomic = False
@@ -434,6 +443,8 @@ class Union(RegularExpression):
 
 @six.python_2_unicode_compatible
 class Complement(RegularExpression):
+    regex = None  # type: RegularExpression
+
     def __new__(cls, regex):
         """
         Distribute inwards using De Morgan's laws to get a canonical
@@ -474,6 +485,8 @@ class Complement(RegularExpression):
 
 @six.python_2_unicode_compatible
 class Star(RegularExpression):
+    regex = None  # type: RegularExpression
+
     def __new__(cls, regex):
         if regex is EMPTY or regex is EPSILON:
             return regex

@@ -11,7 +11,7 @@ import networkx as nx
 import typing
 from typing import Dict
 from typing import Sequence
-from typing import Tuple
+from typing import AnyStr
 
 
 logger = logging.getLogger(__name__)
@@ -39,10 +39,12 @@ if sys.version_info < (3, ):
 else:
     Character = typing.Union[str]
 
+AlphabetType = Sequence[Character]
+
 
 class DFA(nx.MultiDiGraph):
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
-        # type: (NodeType, bool, Sequence[Character]) -> None
+        # type: (NodeType, bool, AlphabetType) -> None
         super(DFA, self).__init__()
         self.start = start
         self.add_state(start, start_accepting)
@@ -54,7 +56,7 @@ class DFA(nx.MultiDiGraph):
         self.alphabet = alphabet
 
     @property
-    def as_multidigraph(self):
+    def as_multidigraph(self):  # type: () -> nx.MultiDiGraph
         """
         Constructs a MultiDiGraph that is a copy of self.
 
@@ -163,7 +165,7 @@ class DFA(nx.MultiDiGraph):
         return ''.join(chars)
 
     @property
-    def live_subgraph(self):
+    def live_subgraph(self):  # type: () -> nx.MultiDiGraph
         """
         Returns the graph of "live" states for this graph, i.e. the start state
         together with states that may be involved in positively matching a string
@@ -189,8 +191,8 @@ class DFA(nx.MultiDiGraph):
         live_states = {self.start} | (nx.ancestors(graph, sink) & nx.descendants(graph, self.start))
         return graph.subgraph(live_states)
 
-    def add_state(self, state, accepting):
-        return self.add_node(
+    def add_state(self, state, accepting):  # type: (NodeType, bool) -> None
+        self.add_node(
             state,
             attr_dict={
                 'label': str(state),
@@ -199,7 +201,7 @@ class DFA(nx.MultiDiGraph):
             color='green' if accepting else 'black',
         )
 
-    def add_transition(self, from_state, to_state, char):
+    def add_transition(self, from_state, to_state, char):  # type: (NodeType, NodeType, Character) -> None
         if not (self.has_node(from_state) and self.has_node(to_state)):
             raise ValueError('States must be added prior to transitions.')
         if self.delta[from_state].get(char) == to_state:
@@ -208,7 +210,7 @@ class DFA(nx.MultiDiGraph):
         elif self.delta[from_state].get(char) is not None:
             raise ValueError('Already have a transition.')
         self.delta[from_state][char] = to_state
-        return self.add_edge(
+        self.add_edge(
             from_state, to_state,
             attr_dict={
                 'transition': char,
@@ -216,7 +218,7 @@ class DFA(nx.MultiDiGraph):
             }
         )
 
-    def match(self, string):
+    def match(self, string):  # type: (AnyStr) -> bool
         node = self.start
         for char in string:
             node = self.delta[node][char]
@@ -237,7 +239,7 @@ class DFA(nx.MultiDiGraph):
             'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(graph)))
         os.system('open /tmp/foo_{0}.png'.format(id(graph)))
 
-    def find_invalid_nodes(self):
+    def find_invalid_nodes(self):  # type: () -> Sequence[NodeType]
         """
         Returns a list of nodes which do not have a transition for every element
         of the alphabet.
@@ -253,7 +255,7 @@ class DFA(nx.MultiDiGraph):
                 invalid_nodes.append(from_node)
         return invalid_nodes
 
-    def construct_isomorphism(self, other):
+    def construct_isomorphism(self, other):  # type: (DFA) -> Dict[typing.Any, typing.Any]
         """
         Returns a mapping of states between self and other exhibiting an
         isomorphism, or None if no isomorphism exists.
@@ -293,12 +295,13 @@ class RegexDFA(DFA):
         matches that regular expression. In particular, the "start" node is
         labeled with `regex`.
         """
+        from revex.derivative import RegularExpression
         super(RegexDFA, self).__init__(
             start=regex,
             start_accepting=regex.accepting,
             alphabet=alphabet,
         )
-        nodes = {regex}
+        nodes = {regex}  # type: Set[RegularExpression]
         while nodes:
             node = nodes.pop()
             for char in alphabet:
