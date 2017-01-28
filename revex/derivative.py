@@ -116,7 +116,7 @@ class _Empty(RegularExpression):
 
     accepting = False
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         return EMPTY
 
     def __str__(self):
@@ -139,7 +139,7 @@ class _Epsilon(RegularExpression):
 
     accepting = True
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         return EMPTY
 
     def __str__(self):
@@ -165,7 +165,7 @@ class _Dot(RegularExpression):
 
     accepting = False
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         return EPSILON
 
     def __str__(self):
@@ -320,7 +320,7 @@ class Intersection(RegularExpression):
     def accepting(self):
         return all(child.accepting for child in self.children)
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         return reduce(operator.and_, (child.derivative(char) for child in self.children))
 
     def __str__(self):
@@ -344,7 +344,7 @@ class CharSet(RegularExpression):
     accepting = False
     is_atomic = True
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         if self.negated:
             return EMPTY if char in self.chars else EPSILON
         else:
@@ -428,7 +428,7 @@ class Union(RegularExpression):
     def accepting(self):
         return any(child.accepting for child in self.children)
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         return reduce(operator.or_, (child.derivative(char) for child in self.children))
 
     @property
@@ -470,7 +470,7 @@ class Complement(RegularExpression):
     def accepting(self):
         return not self.regex.accepting
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         return ~self.regex.derivative(char)
 
     @property
@@ -497,7 +497,7 @@ class Star(RegularExpression):
 
     accepting = True
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (Character) -> RegularExpression
         return self.regex.derivative(char) + self
 
     @property
