@@ -399,7 +399,7 @@ def minimize_dfa(dfa):
     return new_dfa
 
 
-def construct_integer_dfa(dfa):
+class IntegerDFA(DFA):
     """
     Constructs a DFA whose states are all integers from 0 to (number of states),
     with 0 the start state.
@@ -407,23 +407,23 @@ def construct_integer_dfa(dfa):
     This is more efficient for some algorithms, since arrays/lists can be used
     instead of hash tables.
     """
-    nodes = [dfa.start] + [node for node in dfa.node if node != dfa.start]
-    node_to_index = {node: index for index, node in enumerate(nodes)}
-    int_dfa = DFA(
-        start=node_to_index[dfa.start],
-        start_accepting=dfa.node[dfa.start]['accepting'],
-        alphabet=dfa.alphabet,
-    )
-    for node, attr in six.iteritems(dfa.node):
-        int_dfa.add_state(
-            node_to_index[node],
-            accepting=attr['accepting'],
+    def __init__(self, dfa):  # type: (DFA) -> None
+        nodes = [dfa.start] + [node for node in dfa.node if node != dfa.start]
+        node_to_index = {node: index for index, node in enumerate(nodes)}
+        super(IntegerDFA, self).__init__(
+            start=node_to_index[dfa.start],
+            start_accepting=dfa.node[dfa.start]['accepting'],
+            alphabet=dfa.alphabet,
         )
-    for from_node, trans in six.iteritems(dfa.delta):
-        for char, to_node in six.iteritems(trans):
-            int_dfa.add_transition(
-                node_to_index[from_node],
-                node_to_index[to_node],
-                char,
+        for node, attr in six.iteritems(dfa.node):
+            self.add_state(
+                node_to_index[node],
+                accepting=attr['accepting'],
             )
-    return int_dfa
+        for from_node, trans in six.iteritems(dfa.delta):
+            for char, to_node in six.iteritems(trans):
+                self.add_transition(
+                    node_to_index[from_node],
+                    node_to_index[to_node],
+                    char,
+                )

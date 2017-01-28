@@ -1,25 +1,29 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division
 
-import abc
 import random
 import itertools
 from bisect import bisect_left
 from itertools import count
 
-import six
 from six.moves import range
+from typing import Tuple, Dict
 
-from revex.dfa import construct_integer_dfa
+from revex.dfa import DFA
+from revex.dfa import IntegerDFA
 from revex.dfa import EmptyLanguageError
 from revex.dfa import InfiniteLanguageError
+from revex.dfa import NodeType
 
 
 class InvalidDistributionError(Exception):
     pass
 
 
-class DiscreteRandomVariable(list):
+class _Distribution(list):
+    pass
+
+class DiscreteRandomVariable(_Distribution):
     def __init__(self, counts):
         total = sum(counts, 0.0)
         if total == 0:
@@ -40,7 +44,7 @@ class DiscreteRandomVariable(list):
         return bisect_left(self, random.random())
 
 
-class LeastFrequentRoundRobin(list):
+class LeastFrequentRoundRobin(_Distribution):
     """
     Draws in a cycle from least frequent to most frequent, ignoring indices
     with zero weighting.
@@ -57,7 +61,7 @@ class LeastFrequentRoundRobin(list):
 
 class PathCounts(list):
 
-    def __init__(self, dfa):
+    def __init__(self, dfa):  # type: (DFA) -> None
         """
         Class for maintaining state path counts inside a dfa.
 
@@ -100,12 +104,12 @@ class PathCounts(list):
         return 'PathCounts(%r)' % self.dfa
 
 
-class BaseGenerator(six.with_metaclass(abc.ABCMeta)):
-    def __init__(self, dfa):
+class BaseGenerator(object):
+    def __init__(self, dfa):  # type: (DFA) -> None
         invalid_nodes = dfa.find_invalid_nodes()
         if invalid_nodes:  # pragma: no cover
             raise ValueError('Must use a valid DFA.')
-        self.dfa = construct_integer_dfa(dfa)
+        self.dfa = IntegerDFA(dfa)
         self.alphabet = list(self.dfa.alphabet)
 
         self.nodes = range(0, len(self.dfa.node))
@@ -115,9 +119,8 @@ class BaseGenerator(six.with_metaclass(abc.ABCMeta)):
         # state to _some_ final/accepting state. Since these numbers can
         # be exponentially large in `n`, we use floating point numbers for efficiency.
         self.path_counts = PathCounts(self.dfa)
-        self.node_length_to_character_dist = {}
+        self.node_length_to_character_dist = {}  # type: Dict[Tuple[int, int], _Distribution]
 
-    @abc.abstractproperty
     def distribution_type(self):
         raise NotImplementedError
 
