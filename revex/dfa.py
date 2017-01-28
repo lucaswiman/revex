@@ -3,10 +3,15 @@ from __future__ import unicode_literals
 
 import logging
 import re
+import sys
 from collections import defaultdict
 
 import six
 import networkx as nx
+import typing
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
 
 
 logger = logging.getLogger(__name__)
@@ -27,15 +32,24 @@ class InfiniteLanguageError(RevexError):
     pass
 
 
+NodeType = typing.TypeVar('NodeType')
+
+if sys.version_info < (3, ):
+    Character = typing.Union[str, unicode]
+else:
+    Character = typing.Union[str]
+
+
 class DFA(nx.MultiDiGraph):
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
+        # type: (NodeType, bool, Sequence[Character]) -> None
         super(DFA, self).__init__()
         self.start = start
         self.add_state(start, start_accepting)
 
-        # Index of (state, char): next char transitions. In the literature, this
+        # Index of (state, char): next state transitions. In the literature, this
         # is usually denoted 𝛿.
-        self.delta = defaultdict(dict)
+        self.delta = defaultdict(dict)  # type: defaultdict[NodeType, Dict[Character, NodeType]]
 
         self.alphabet = alphabet
 
