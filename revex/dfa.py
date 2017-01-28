@@ -9,9 +9,10 @@ import six
 import networkx as nx
 import typing  # noqa
 from six.moves import range
-from typing import Dict  # noqa
-from typing import Sequence  # noqa
 from typing import AnyStr  # noqa
+from typing import Dict  # noqa
+from typing import Optional  # noqa
+from typing import Sequence  # noqa
 
 
 logger = logging.getLogger(__name__)
@@ -254,7 +255,8 @@ class DFA(nx.MultiDiGraph):
                 invalid_nodes.append(from_node)
         return invalid_nodes
 
-    def construct_isomorphism(self, other):  # type: (DFA) -> Dict[typing.Any, typing.Any]
+    def construct_isomorphism(self, other):
+        # type: (DFA) -> Optional[Dict[typing.Any, typing.Any]]
         """
         Returns a mapping of states between self and other exhibiting an
         isomorphism, or None if no isomorphism exists.

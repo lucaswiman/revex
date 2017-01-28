@@ -14,6 +14,7 @@ import re
 import string
 from functools import reduce, total_ordering
 from typing import AnyStr  # noqa
+from typing import Optional  # noqa
 from typing import Set  # noqa
 from typing import Tuple  # noqa
 
@@ -269,12 +270,13 @@ class Intersection(RegularExpression):
         children  = (children - charsets) - negated_charsets
         if charsets:
             charset = CharSet(reduce(operator.and_, (set(c.chars) for c in charsets)))
+            # type: Optional[CharSet]
         else:
             charset = None
         if negated_charsets:
             negated_charset = CharSet(
                 reduce(operator.or_, (set(c.chars) for c in negated_charsets)),
-                negated=True)
+                negated=True)  # type: Optional[CharSet]
         else:
             negated_charset = None
 
