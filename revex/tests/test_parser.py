@@ -175,7 +175,6 @@ def test_noncapturing_group():
     assert RE(r'f(?:oo)').match('foo')
 
 
-@pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
 def test_lookaround_grammar():
     assert REGEX.parse(r'foo(?=bar).*')
     assert REGEX.parse(r'foo(?=bar)')

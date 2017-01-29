@@ -540,7 +540,8 @@ REGEX = Grammar(r'''
     optional = literal "?"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = comment / group / char / negative_set / positive_set
+    literal = comment / lookaround / group / char / negative_set / positive_set
+    lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") sub_re ")"
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
