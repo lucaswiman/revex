@@ -344,6 +344,7 @@ def get_equivalent_states(dfa):
 
 T = typing.TypeVar('T')
 
+
 def minimize_dfa(dfa):  # type: (DFA[T]) -> DFA[frozenset[T]]
     """
     Constructs a minimized DFA by combining equivalent states.
