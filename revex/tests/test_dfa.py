@@ -35,7 +35,7 @@ def test_dfa_matches_builtin(s):
 def test_equivalent_state_computation():
     # Construct a DFA where all states are equivalent to each other.
     alphabet = '01'
-    dfa = DFA(0, True, alphabet=alphabet)  # type: DFA[int, six.text_type]
+    dfa = DFA(0, True, alphabet=alphabet)  # type: DFA[int]
     dfa.add_state(1, True)
     dfa.add_state(2, True)
     dfa.add_state(3, True)
@@ -60,7 +60,7 @@ def test_equivalent_state_example():
     # https://www.tutorialspoint.com/automata_theory/dfa_minimization.htm
     alphabet = '01'
     a, b, c, d, e, f = states = 'abcdef'
-    dfa = DFA(a, False, alphabet=alphabet)  # type: DFA[six.text_type, six.text_type]
+    dfa = DFA(a, False, alphabet=alphabet)  # type: DFA[six.text_type]
     dfa.add_state(b, False)
     dfa.add_state(c, True)
     dfa.add_state(d, True)
@@ -102,7 +102,7 @@ def test_equivalent_state_example():
     new_dfa = minimize_dfa(dfa)
     assert not new_dfa.find_invalid_nodes()
 
-    expected_dfa = DFA('ab', False, alphabet=alphabet)  # type: DFA[six.text_type, six.text_type]
+    expected_dfa = DFA('ab', False, alphabet=alphabet)  # type: DFA[six.text_type]
     expected_dfa.add_state('cde', True)
     expected_dfa.add_state('f', False)
 

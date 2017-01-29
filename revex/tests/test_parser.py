@@ -2,13 +2,14 @@ import re
 
 import pytest
 
-from revex.derivative import RegularExpression, REGEX
+from revex import compile
+from revex.derivative import REGEX
 
 
 class RE(object):
     def __init__(self, pattern):
         self.base_re = re.compile(r'^(%s)$' % pattern)
-        self.re = RegularExpression.compile(pattern)
+        self.re = compile(pattern)
 
     def match(self, string):
         assert bool(self.base_re.match(string)) == self.re.match(string)
@@ -137,10 +138,10 @@ def test_repeat():
     assert regex.match('a' * 2 + 'q')
     assert not regex.match('a' * 3 + 'q')
 
-    assert RegularExpression.compile('a{3}') == RegularExpression.compile('aaa')
+    assert compile('a{3}') == compile('aaa')
 
-    assert RegularExpression.compile('ba{3}') == RegularExpression.compile('baaa')
-    assert RegularExpression.compile('(ba){3}') == RegularExpression.compile('bababa')
+    assert compile('ba{3}') == compile('baaa')
+    assert compile('(ba){3}') == compile('bababa')
 
 
 def test_character_class_space():

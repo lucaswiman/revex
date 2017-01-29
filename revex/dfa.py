@@ -35,14 +35,17 @@ class InfiniteLanguageError(RevexError):
 
 NodeType = typing.TypeVar('NodeType')
 
-String = typing.TypeVar('String', Union[six.text_type, six.binary_type])
+if six.PY2:
+    String = Union[six.text_type, six.binary_type]
+else:
+    String = str
 
 # All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
 DEFAULT_ALPHABET = list(
     filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))  # type: Sequence[str]
 
 
-class DFA(Generic[NodeType, String], nx.MultiDiGraph):
+class DFA(Generic[NodeType], nx.MultiDiGraph):
     node = None  # type: Dict[NodeType, Dict[Any, Any]]
 
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
@@ -286,35 +289,8 @@ class DFA(Generic[NodeType, String], nx.MultiDiGraph):
         return isomorphism
 
 
-class RegexDFA(DFA):
-    def __init__(self, regex, alphabet=DEFAULT_ALPHABET):
-        """
-        Builds a DFA from a revex.derivative.RegularExpression object.
-
-        Based of the construction here: https://drona.csa.iisc.ernet.in/~deepakd/fmcs-06/seminars/presentation.pdf  # noqa
-        Nodes are named by the regular expression that, starting at that node,
-        matches that regular expression. In particular, the "start" node is
-        labeled with `regex`.
-        """
-        from revex.derivative import RegularExpression  # noqa
-        super(RegexDFA, self).__init__(
-            start=regex,
-            start_accepting=regex.accepting,
-            alphabet=alphabet,
-        )
-        nodes = {regex}  # type: Set[RegularExpression]
-        while nodes:
-            node = nodes.pop()
-            for char in alphabet:
-                derivative = node.derivative(char)
-                if not self.has_node(derivative):
-                    nodes.add(derivative)
-                    self.add_state(derivative, derivative.accepting)
-                self.add_transition(node, derivative, char)
-
-
 def get_equivalent_states(dfa):
-    # type: (DFA[NodeType, String]) -> Set[tuple[NodeType, NodeType]]
+    # type: (DFA[NodeType]) -> Set[tuple[NodeType, NodeType]]
     """
     Return equivalent states in the DFA, as constructed using Hopcroft's
     algorithm. See https://en.wikipedia.org/wiki/DFA_minimization
@@ -404,12 +380,7 @@ def minimize_dfa(dfa):  # type: (DFA) -> DFA
     return new_dfa
 
 
-
-T = typing.TypeVar('T')  # noqa
-V = typing.TypeVar('V')  # noqa
-
-
-def construct_integer_dfa(dfa):  # type: (DFA[T, String]) -> DFA[int, String]
+def construct_integer_dfa(dfa):  # type: (DFA) -> DFA[int]
     """
     Constructs a DFA whose states are all integers from 0 to (number of states),
     with 0 the start state.

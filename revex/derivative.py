@@ -13,8 +13,6 @@ import operator
 import re
 import string
 from functools import reduce, total_ordering
-from typing import Any  # noqa
-from typing import Generic  # noqa
 from typing import Optional  # noqa
 from typing import Set  # noqa
 from typing import Sequence  # noqa
@@ -24,11 +22,11 @@ import six
 from parsimonious import NodeVisitor, Grammar
 
 from revex.dfa import String, DFA  # noqa
-from .dfa import RegexDFA, DEFAULT_ALPHABET
+from .dfa import DEFAULT_ALPHABET
 
 
 @total_ordering
-class RegularExpression(Generic[String]):
+class RegularExpression(object):
     """
     A generalized regular expression, supporting:
         - ∅:               EMPTY
@@ -42,12 +40,29 @@ class RegularExpression(Generic[String]):
     """
     is_atomic = True
 
-    @staticmethod
-    def compile(regex):  # type: (String) -> RegularExpression[String]
-        return RegexVisitor().parse(regex)
-
-    def as_dfa(self, alphabet=DEFAULT_ALPHABET):  # type: (Sequence[String]) -> DFA[RegularExpression, String]
-        return RegexDFA(self, alphabet=alphabet)
+    def as_dfa(self, alphabet=DEFAULT_ALPHABET):
+        # type: (Sequence[String]) -> DFA[RegularExpression]
+        """
+        Based of the construction here: https://drona.csa.iisc.ernet.in/~deepakd/fmcs-06/seminars/presentation.pdf  # noqa
+        Nodes are named by the regular expression that, starting at that node,
+        matches that regular expression. In particular, the "start" node is
+        labeled with `regex`.
+        """
+        dfa = DFA(
+            start=self,
+            start_accepting=self.accepting,
+            alphabet=alphabet,
+        )
+        nodes = {self}  # type: Set[RegularExpression]
+        while nodes:
+            node = nodes.pop()
+            for char in alphabet:
+                derivative = node.derivative(char)
+                if not dfa.has_node(derivative):
+                    nodes.add(derivative)
+                    dfa.add_state(derivative, derivative.accepting)
+                dfa.add_transition(node, derivative, char)
+        return dfa
 
     def __add__(self, other):
         return Concatenation(self, other)
@@ -110,7 +125,7 @@ def parenthesize_repr(regex):
 
 
 @six.python_2_unicode_compatible
-class _Empty(RegularExpression[Any]):
+class _Empty(RegularExpression):
     def __new__(cls):
         try:
             return EMPTY
@@ -133,7 +148,7 @@ EMPTY = _Empty()
 
 
 @six.python_2_unicode_compatible
-class _Epsilon(RegularExpression[Any]):
+class _Epsilon(RegularExpression):
     def __new__(cls):
         try:
             return EPSILON
@@ -156,7 +171,7 @@ EPSILON = _Epsilon()
 
 
 @six.python_2_unicode_compatible
-class _Dot(RegularExpression[Any]):
+class _Dot(RegularExpression):
     """
     Special expression for matching any character.
     """
@@ -251,8 +266,8 @@ class Concatenation(RegularExpression):
 class Intersection(RegularExpression):
     children = None  # type: Tuple[RegularExpression, ...]
 
-    def __new__(cls, *children_tuple):  # type: (*RegularExpression[String]) -> RegularExpression[String]
-        children = set()  # type: Set[RegularExpression[String]]
+    def __new__(cls, *children_tuple):  # type: (*RegularExpression) -> RegularExpression
+        children = set()  # type: Set[RegularExpression]
         for child in children_tuple:
             if isinstance(child, Intersection):
                 children |= set(child.children)
@@ -545,7 +560,7 @@ REGEX = Grammar(r'''
 class RegexVisitor(NodeVisitor):
     grammar = REGEX
 
-    def parse(self, regex):  # type: (String) -> RegularExpression[String]
+    def parse(self, regex):  # type: (String) -> RegularExpression
         return super(RegexVisitor, self).parse(regex)
 
     def visit_re(self, node, children):
