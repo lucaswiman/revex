@@ -540,7 +540,8 @@ REGEX = Grammar(r'''
     optional = literal "?"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = comment / group / char / negative_set / positive_set
+    literal = comment / lookaround / group / char / negative_set / positive_set
+    lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") sub_re ")"
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
@@ -572,6 +573,10 @@ class RegexVisitor(NodeVisitor):
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.
         return EPSILON
+
+    def visit_lookaround(self, node, childen):
+        raise NotImplementedError(
+            'Lookaround expressions not implemented: %r' % node.text)
 
     def visit_group(self, node, children):
         lparen, [re], rparen = children
