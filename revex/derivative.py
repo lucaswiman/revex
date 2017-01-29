@@ -532,7 +532,6 @@ class Star(RegularExpression):
 
 REGEX = Grammar(r'''
     re = union / concatenation
-    sub_re = union / concatenation
     union = (concatenation "|")+ concatenation
     concatenation = (star / plus / repeat_fixed / repeat_range / optional / literal)+
     star = literal "*"
@@ -543,7 +542,7 @@ REGEX = Grammar(r'''
     literal = comment / lookaround / group / char / negative_set / positive_set
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
-    group = ("(?:" / "(") sub_re ")"
+    group = ("(?:" / "(") re ")"
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
     any = "."
     char = escaped_metachar / charclass / any / non_metachar
@@ -579,7 +578,7 @@ class RegexVisitor(NodeVisitor):
             'Lookaround expressions not implemented: %r' % node.text)
 
     def visit_group(self, node, children):
-        lparen, [re], rparen = children
+        lparen, re, rparen = children
         return re
 
     def visit_char(self, node, children):
