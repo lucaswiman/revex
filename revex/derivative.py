@@ -574,6 +574,10 @@ class RegexVisitor(NodeVisitor):
         # Just ignore the comment text and return a zero-character regex.
         return EPSILON
 
+    def visit_lookaround(self, node, childen):
+        raise NotImplementedError(
+            'Lookaround expressions not implemented: %r' % node.text)
+
     def visit_group(self, node, children):
         lparen, [re], rparen = children
         return re

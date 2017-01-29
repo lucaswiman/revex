@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from parsimonious import VisitationError
 
 from revex import compile
 from revex.derivative import REGEX
@@ -182,6 +183,8 @@ def test_lookaround_grammar():
     assert REGEX.parse(r'foo(?!bar)')
     assert REGEX.parse(r'.*(<=bar)foo')
     assert REGEX.parse(r'.*(<!bar)foo')
+    with pytest.raises(VisitationError):
+        RE(r'foo(?=bar).*')
 
 
 @pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
