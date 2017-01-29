@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from typing import Any  # noqa
 from typing import Dict  # noqa
+from typing import List  # noqa
 from typing import Optional  # noqa
 from typing import Sequence  # noqa
 from typing import Set  # noqa
@@ -74,11 +75,11 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         return graph
 
     @property
-    def is_empty(self):
+    def is_empty(self):   # type: () -> bool
         return len(self._acceptable_subgraph.node) == 0
 
     @property
-    def _acceptable_subgraph(self):
+    def _acceptable_subgraph(self):  # type:  () -> nx.MultiDiGraph
         graph = self.as_multidigraph
         reachable_states = nx.descendants(graph, self.start) | {self.start}
         graph = graph.subgraph(reachable_states)
@@ -98,7 +99,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         return graph.subgraph(acceptable_sates)
 
     @property
-    def has_finite_language(self):
+    def has_finite_language(self):  # type: () -> bool
         """
         Returns True iff this DFA recognizes a finite (possibly empty) language.
 
@@ -231,6 +232,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         return self.node[node]['accepting']
 
     def _draw(self, full=False):  # pragma: no cover
+        # type: () -> None
         """
         Hack to draw the graph and open it in preview. Sorta OS X only-ish.
         """
@@ -318,7 +320,7 @@ def get_equivalent_states(dfa):
         if (p in F) == (q in F)
     }
 
-    def delta(state, char):
+    def delta(state, char):  # type: (NodeType, String) -> NodeType
         return dfa.delta[state][char]
 
     # Now proceed in a backtracking search for all 1-character disproofs of
@@ -340,13 +342,15 @@ def get_equivalent_states(dfa):
     return equivalent | {(q, p) for p, q in equivalent}
 
 
-def minimize_dfa(dfa):  # type: (DFA) -> DFA
+T = typing.TypeVar('T')
+
+def minimize_dfa(dfa):  # type: (DFA[T]) -> DFA[frozenset[T]]
     """
     Constructs a minimized DFA by combining equivalent states.
     """
     equivalent_states = get_equivalent_states(dfa)
-    equivalency_classes = []
-    old_states = set(dfa.nodes())
+    equivalency_classes = []  # type: List[frozenset[T]]
+    old_states = set(dfa.nodes())  # type: Set[T]
     while old_states:
         state = old_states.pop()
         new_state = {state}
@@ -358,16 +362,16 @@ def minimize_dfa(dfa):  # type: (DFA) -> DFA
     old_state_to_new_state = {
         state: new_state for new_state in equivalency_classes
         for state in new_state
-    }
+    }  # type: Dict[T, frozenset[T]]
 
-    def is_accepting(new_state):
+    def is_accepting(new_state):  # type: (frozenset[T]) -> bool
         return dfa.node[next(iter(new_state))]['accepting']
 
     start = old_state_to_new_state[dfa.start]
-    new_dfa = DFA(start, is_accepting(start), alphabet=dfa.alphabet)
-    for state in equivalency_classes:
-        if state != start:
-            new_dfa.add_state(state, is_accepting(state))
+    new_dfa = DFA(start, is_accepting(start), alphabet=dfa.alphabet)  # type: DFA[frozenset[T]]
+    for equivalency_class in equivalency_classes:
+        if equivalency_class != start:
+            new_dfa.add_state(equivalency_class, is_accepting(equivalency_class))
 
     for from_state, trans in dfa.delta.items():
         for char, to_state in trans.items():
