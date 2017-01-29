@@ -1,14 +1,14 @@
-from typing import AnyStr  # noqa
+from typing import Sequence  # noqa
 
 
 from .derivative import RegularExpression
 from .dfa import DEFAULT_ALPHABET
-from .dfa import DFA, AlphabetType  # noqa
+from .dfa import DFA, String  # noqa
 
 
 compile = RegularExpression.compile
 
 
 def build_dfa(regex, alphabet=DEFAULT_ALPHABET):
-    # type: (AnyStr, AlphabetType) -> DFA[RegularExpression, AnyStr]
+    # type: (String, Sequence[String]) -> DFA[RegularExpression[String], String]
     return compile(regex).as_dfa(alphabet=alphabet)

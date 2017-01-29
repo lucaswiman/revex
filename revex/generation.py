@@ -10,7 +10,7 @@ from six.moves import range
 from typing import Tuple, Dict, List, Union  # noqa
 
 from revex.dfa import DFA  # noqa
-from revex.dfa import IntegerDFA
+from revex.dfa import construct_integer_dfa
 from revex.dfa import EmptyLanguageError
 from revex.dfa import InfiniteLanguageError
 
@@ -108,7 +108,7 @@ class BaseGenerator(object):
     def __init__(self, dfa):  # type: (DFA) -> None
         if dfa.find_invalid_nodes():  # pragma: no cover
             raise ValueError('Must use a valid DFA.')
-        self.dfa = IntegerDFA(dfa)
+        self.dfa = construct_integer_dfa(dfa)
         self.alphabet = list(self.dfa.alphabet)
 
         self.nodes = range(0, len(self.dfa.node))

@@ -35,30 +35,27 @@ class InfiniteLanguageError(RevexError):
 
 NodeType = typing.TypeVar('NodeType')
 
-Character = typing.TypeVar('Character', six.binary_type, six.text_type)
-String = Union[six.binary_type, six.text_type]
-
-AlphabetType = Sequence[Character]
+String = typing.TypeVar('String', Union[six.text_type, six.binary_type])
 
 # All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
-DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
-# type: AlphabetType
+DEFAULT_ALPHABET = list(
+    filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))  # type: Sequence[str]
 
 
-class DFA(Generic[NodeType, Character], nx.MultiDiGraph):
+class DFA(Generic[NodeType, String], nx.MultiDiGraph):
     node = None  # type: Dict[NodeType, Dict[Any, Any]]
 
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
-        # type: (NodeType, bool, AlphabetType) -> None
+        # type: (NodeType, bool, Sequence[String]) -> None
         super(DFA, self).__init__()
         self.start = start  # type: NodeType
         self.add_state(start, start_accepting)
 
         # Index of (state, char): next state transitions. In the literature, this
         # is usually denoted 𝛿.
-        self.delta = defaultdict(dict)  # type: defaultdict[NodeType, Dict[Character, NodeType]]
+        self.delta = defaultdict(dict)  # type: defaultdict[NodeType, Dict[String, NodeType]]
 
-        self.alphabet = alphabet  # type: AlphabetType
+        self.alphabet = alphabet  # type: Sequence[String]
 
     @property
     def as_multidigraph(self):  # type: () -> nx.MultiDiGraph
@@ -112,7 +109,7 @@ class DFA(Generic[NodeType, Character], nx.MultiDiGraph):
         return nx.is_directed_acyclic_graph(self._acceptable_subgraph)
 
     @property
-    def longest_string(self):  # type: () -> Character
+    def longest_string(self):  # type: () -> String
         """
         Returns an example of a maximally long string recognized by this DFA.
 
@@ -207,7 +204,7 @@ class DFA(Generic[NodeType, Character], nx.MultiDiGraph):
         )
 
     def add_transition(self, from_state, to_state, char):
-        # type: (NodeType, NodeType, Character) -> None
+        # type: (NodeType, NodeType, String) -> None
         if not (self.has_node(from_state) and self.has_node(to_state)):
             raise ValueError('States must be added prior to transitions.')
         if self.delta[from_state].get(char) == to_state:
@@ -224,7 +221,7 @@ class DFA(Generic[NodeType, Character], nx.MultiDiGraph):
             }
         )
 
-    def match(self, string):  # type: (Character) -> bool
+    def match(self, string):  # type: (String) -> bool
         node = self.start
         for i in range(len(string)):
             node = self.delta[node][string[i:i + 1]]
@@ -317,7 +314,7 @@ class RegexDFA(DFA):
 
 
 def get_equivalent_states(dfa):
-    # type: (DFA[NodeType, Character]) -> Set[tuple[NodeType, NodeType]]
+    # type: (DFA[NodeType, String]) -> Set[tuple[NodeType, NodeType]]
     """
     Return equivalent states in the DFA, as constructed using Hopcroft's
     algorithm. See https://en.wikipedia.org/wiki/DFA_minimization
@@ -407,31 +404,35 @@ def minimize_dfa(dfa):  # type: (DFA) -> DFA
     return new_dfa
 
 
-class IntegerDFA(DFA):
+
+T = typing.TypeVar('T')  # noqa
+V = typing.TypeVar('V')  # noqa
+
+
+def construct_integer_dfa(dfa):  # type: (DFA[T, String]) -> DFA[int, String]
     """
     Constructs a DFA whose states are all integers from 0 to (number of states),
     with 0 the start state.
-
     This is more efficient for some algorithms, since arrays/lists can be used
     instead of hash tables.
     """
-    def __init__(self, dfa):  # type: (DFA) -> None
-        nodes = [dfa.start] + [node for node in dfa.node if node != dfa.start]
-        node_to_index = {node: index for index, node in enumerate(nodes)}
-        super(IntegerDFA, self).__init__(
-            start=node_to_index[dfa.start],
-            start_accepting=dfa.node[dfa.start]['accepting'],
-            alphabet=dfa.alphabet,
+    nodes = [dfa.start] + [node for node in dfa.node if node != dfa.start]
+    node_to_index = {node: index for index, node in enumerate(nodes)}
+    int_dfa = DFA(
+        start=node_to_index[dfa.start],
+        start_accepting=dfa.node[dfa.start]['accepting'],
+        alphabet=dfa.alphabet,
+    )
+    for node, attr in six.iteritems(dfa.node):
+        int_dfa.add_state(
+            node_to_index[node],
+            accepting=attr['accepting'],
         )
-        for node, attr in six.iteritems(dfa.node):
-            self.add_state(
-                node_to_index[node],
-                accepting=attr['accepting'],
+    for from_node, trans in six.iteritems(dfa.delta):
+        for char, to_node in six.iteritems(trans):
+            int_dfa.add_transition(
+                node_to_index[from_node],
+                node_to_index[to_node],
+                char,
             )
-        for from_node, trans in six.iteritems(dfa.delta):
-            for char, to_node in six.iteritems(trans):
-                self.add_transition(
-                    node_to_index[from_node],
-                    node_to_index[to_node],
-                    char,
-                )
+    return int_dfa

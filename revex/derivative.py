@@ -13,20 +13,22 @@ import operator
 import re
 import string
 from functools import reduce, total_ordering
-from typing import AnyStr  # noqa
+from typing import Any  # noqa
+from typing import Generic  # noqa
 from typing import Optional  # noqa
 from typing import Set  # noqa
+from typing import Sequence  # noqa
 from typing import Tuple  # noqa
 
 import six
 from parsimonious import NodeVisitor, Grammar
 
-from revex.dfa import AlphabetType, String, DFA  # noqa
+from revex.dfa import String, DFA  # noqa
 from .dfa import RegexDFA, DEFAULT_ALPHABET
 
 
 @total_ordering
-class RegularExpression(object):
+class RegularExpression(Generic[String]):
     """
     A generalized regular expression, supporting:
         - ∅:               EMPTY
@@ -40,11 +42,11 @@ class RegularExpression(object):
     """
     is_atomic = True
 
-    @classmethod
-    def compile(self, regex):  # type: (AnyStr) -> RegularExpression
+    @staticmethod
+    def compile(regex):  # type: (String) -> RegularExpression[String]
         return RegexVisitor().parse(regex)
 
-    def as_dfa(self, alphabet=DEFAULT_ALPHABET):  # type: (AlphabetType) -> DFA
+    def as_dfa(self, alphabet=DEFAULT_ALPHABET):  # type: (Sequence[String]) -> DFA[RegularExpression, String]
         return RegexDFA(self, alphabet=alphabet)
 
     def __add__(self, other):
@@ -108,7 +110,7 @@ def parenthesize_repr(regex):
 
 
 @six.python_2_unicode_compatible
-class _Empty(RegularExpression):
+class _Empty(RegularExpression[Any]):
     def __new__(cls):
         try:
             return EMPTY
@@ -131,7 +133,7 @@ EMPTY = _Empty()
 
 
 @six.python_2_unicode_compatible
-class _Epsilon(RegularExpression):
+class _Epsilon(RegularExpression[Any]):
     def __new__(cls):
         try:
             return EPSILON
@@ -154,7 +156,7 @@ EPSILON = _Epsilon()
 
 
 @six.python_2_unicode_compatible
-class _Dot(RegularExpression):
+class _Dot(RegularExpression[Any]):
     """
     Special expression for matching any character.
     """
@@ -249,8 +251,8 @@ class Concatenation(RegularExpression):
 class Intersection(RegularExpression):
     children = None  # type: Tuple[RegularExpression, ...]
 
-    def __new__(cls, *children_tuple):  # type: (*RegularExpression) -> RegularExpression
-        children = set()  # type: Set[RegularExpression]
+    def __new__(cls, *children_tuple):  # type: (*RegularExpression[String]) -> RegularExpression[String]
+        children = set()  # type: Set[RegularExpression[String]]
         for child in children_tuple:
             if isinstance(child, Intersection):
                 children |= set(child.children)
@@ -336,7 +338,7 @@ class Intersection(RegularExpression):
 @six.python_2_unicode_compatible
 class CharSet(RegularExpression):
     negated = None  # type: bool
-    chars = None  # type: Tuple[String, ...]
+    chars = None  # type: tuple
 
     def __new__(cls, chars, negated=False):
         instance = super(CharSet, cls).__new__(cls)
@@ -542,6 +544,9 @@ REGEX = Grammar(r'''
 
 class RegexVisitor(NodeVisitor):
     grammar = REGEX
+
+    def parse(self, regex):  # type: (String) -> RegularExpression[String]
+        return super(RegexVisitor, self).parse(regex)
 
     def visit_re(self, node, children):
         [re] = children
