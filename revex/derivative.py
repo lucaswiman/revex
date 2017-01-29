@@ -312,9 +312,8 @@ class Intersection(RegularExpression):
             # accept. These are exactly the chars recognized by this regex, so
             # just return the charset.
             acceptable_chars = {
-                char for char in charset.chars  # type: ignore
-                if all(
-                    child.derivative(char).accepting for child in children)  # type: ignore
+                char for char in charset.chars
+                if all(child.derivative(char).accepting for child in children)
             }  # type: Set[String]
             if not acceptable_chars:
                 return EMPTY

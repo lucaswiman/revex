@@ -97,7 +97,7 @@ def test_equivalent_state_example():
     expected |= {(x, x) for x in states}
     expected |= {(p, q) for (q, p) in expected}
 
-    equivalent = get_equivalent_states(dfa)  # type: ignore
+    equivalent = get_equivalent_states(dfa)
     assert equivalent == expected
     new_dfa = minimize_dfa(dfa)
     assert not new_dfa.find_invalid_nodes()
