@@ -4,15 +4,22 @@ from __future__ import unicode_literals
 import logging
 import re
 from collections import defaultdict
+from typing import Any  # noqa
+from typing import Dict  # noqa
+from typing import List  # noqa
+from typing import Optional  # noqa
+from typing import Sequence  # noqa
+from typing import Set  # noqa
+from typing import Union  # noqa
+from typing import Generic
 
 import six
 import networkx as nx
+import typing  # noqa
+from six.moves import range
 
 
 logger = logging.getLogger(__name__)
-
-# All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
-DEFAULT_ALPHABET = ''.join(filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))
 
 
 class RevexError(Exception):
@@ -27,20 +34,35 @@ class InfiniteLanguageError(RevexError):
     pass
 
 
-class DFA(nx.MultiDiGraph):
+NodeType = typing.TypeVar('NodeType')
+
+if six.PY2:
+    String = Union[six.text_type, six.binary_type]
+else:
+    String = str
+
+# All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
+DEFAULT_ALPHABET = list(
+    filter(re.compile(r'[ -~]').match, map(chr, range(0, 128))))  # type: Sequence[str]
+
+
+class DFA(Generic[NodeType], nx.MultiDiGraph):
+    node = None  # type: Dict[NodeType, Dict[Any, Any]]
+
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
+        # type: (NodeType, bool, Sequence[String]) -> None
         super(DFA, self).__init__()
-        self.start = start
+        self.start = start  # type: NodeType
         self.add_state(start, start_accepting)
 
-        # Index of (state, char): next char transitions. In the literature, this
+        # Index of (state, char): next state transitions. In the literature, this
         # is usually denoted 𝛿.
-        self.delta = defaultdict(dict)
+        self.delta = defaultdict(dict)  # type: defaultdict[NodeType, Dict[String, NodeType]]
 
-        self.alphabet = alphabet
+        self.alphabet = alphabet  # type: Sequence[String]
 
     @property
-    def as_multidigraph(self):
+    def as_multidigraph(self):  # type: () -> nx.MultiDiGraph
         """
         Constructs a MultiDiGraph that is a copy of self.
 
@@ -53,11 +75,11 @@ class DFA(nx.MultiDiGraph):
         return graph
 
     @property
-    def is_empty(self):
+    def is_empty(self):   # type: () -> bool
         return len(self._acceptable_subgraph.node) == 0
 
     @property
-    def _acceptable_subgraph(self):
+    def _acceptable_subgraph(self):  # type:  () -> nx.MultiDiGraph
         graph = self.as_multidigraph
         reachable_states = nx.descendants(graph, self.start) | {self.start}
         graph = graph.subgraph(reachable_states)
@@ -77,7 +99,7 @@ class DFA(nx.MultiDiGraph):
         return graph.subgraph(acceptable_sates)
 
     @property
-    def has_finite_language(self):
+    def has_finite_language(self):  # type: () -> bool
         """
         Returns True iff this DFA recognizes a finite (possibly empty) language.
 
@@ -91,7 +113,7 @@ class DFA(nx.MultiDiGraph):
         return nx.is_directed_acyclic_graph(self._acceptable_subgraph)
 
     @property
-    def longest_string(self):
+    def longest_string(self):  # type: () -> String
         """
         Returns an example of a maximally long string recognized by this DFA.
 
@@ -146,10 +168,10 @@ class DFA(nx.MultiDiGraph):
         for state1, state2 in zip(longest_path, longest_path[1:]):
             edges = self.succ[state1][state2]
             chars.append(next(six.itervalues(edges))['transition'])
-        return ''.join(chars)
+        return type(self.alphabet[0])().join(chars)
 
     @property
-    def live_subgraph(self):
+    def live_subgraph(self):  # type: () -> nx.MultiDiGraph
         """
         Returns the graph of "live" states for this graph, i.e. the start state
         together with states that may be involved in positively matching a string
@@ -175,8 +197,8 @@ class DFA(nx.MultiDiGraph):
         live_states = {self.start} | (nx.ancestors(graph, sink) & nx.descendants(graph, self.start))
         return graph.subgraph(live_states)
 
-    def add_state(self, state, accepting):
-        return self.add_node(
+    def add_state(self, state, accepting):  # type: (NodeType, bool) -> None
+        self.add_node(
             state,
             attr_dict={
                 'label': str(state),
@@ -186,6 +208,7 @@ class DFA(nx.MultiDiGraph):
         )
 
     def add_transition(self, from_state, to_state, char):
+        # type: (NodeType, NodeType, String) -> None
         if not (self.has_node(from_state) and self.has_node(to_state)):
             raise ValueError('States must be added prior to transitions.')
         if self.delta[from_state].get(char) == to_state:
@@ -194,7 +217,7 @@ class DFA(nx.MultiDiGraph):
         elif self.delta[from_state].get(char) is not None:
             raise ValueError('Already have a transition.')
         self.delta[from_state][char] = to_state
-        return self.add_edge(
+        self.add_edge(
             from_state, to_state,
             attr_dict={
                 'transition': char,
@@ -202,13 +225,14 @@ class DFA(nx.MultiDiGraph):
             }
         )
 
-    def match(self, string):
+    def match(self, string):  # type: (String) -> bool
         node = self.start
-        for char in string:
-            node = self.delta[node][char]
+        for i in range(len(string)):
+            node = self.delta[node][string[i:i + 1]]
         return self.node[node]['accepting']
 
     def _draw(self, full=False):  # pragma: no cover
+        # type: () -> None
         """
         Hack to draw the graph and open it in preview. Sorta OS X only-ish.
         """
@@ -223,7 +247,7 @@ class DFA(nx.MultiDiGraph):
             'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(graph)))
         os.system('open /tmp/foo_{0}.png'.format(id(graph)))
 
-    def find_invalid_nodes(self):
+    def find_invalid_nodes(self):  # type: () -> Sequence[NodeType]
         """
         Returns a list of nodes which do not have a transition for every element
         of the alphabet.
@@ -240,6 +264,7 @@ class DFA(nx.MultiDiGraph):
         return invalid_nodes
 
     def construct_isomorphism(self, other):
+        # type: (DFA) -> Optional[Dict[typing.Any, typing.Any]]
         """
         Returns a mapping of states between self and other exhibiting an
         isomorphism, or None if no isomorphism exists.
@@ -261,41 +286,13 @@ class DFA(nx.MultiDiGraph):
                     to_explore.append((self_next_node, other_next_node))
                     isomorphism[self_next_node] = other_next_node
                 elif isomorphism[self_next_node] != other_next_node:
-                    logger.debug('Found inconsistent mapping %r->%r and %r via %s',
-                                 self_node, other_next_node, isomorphism[self_next_node],
-                                 char)
                     return None
         assert len(isomorphism) == len(self.node)
         return isomorphism
 
 
-class RegexDFA(DFA):
-    def __init__(self, regex, alphabet=DEFAULT_ALPHABET):
-        """
-        Builds a DFA from a revex.derivative.RegularExpression object.
-
-        Based of the construction here: https://drona.csa.iisc.ernet.in/~deepakd/fmcs-06/seminars/presentation.pdf  # noqa
-        Nodes are named by the regular expression that, starting at that node,
-        matches that regular expression. In particular, the "start" node is
-        labeled with `regex`.
-        """
-        super(RegexDFA, self).__init__(
-            start=regex,
-            start_accepting=regex.accepting,
-            alphabet=alphabet,
-        )
-        nodes = {regex}
-        while nodes:
-            node = nodes.pop()
-            for char in alphabet:
-                derivative = node.derivative(char)
-                if not self.has_node(derivative):
-                    nodes.add(derivative)
-                    self.add_state(derivative, derivative.accepting)
-                self.add_transition(node, derivative, char)
-
-
 def get_equivalent_states(dfa):
+    # type: (DFA[NodeType]) -> Set[tuple[NodeType, NodeType]]
     """
     Return equivalent states in the DFA, as constructed using Hopcroft's
     algorithm. See https://en.wikipedia.org/wiki/DFA_minimization
@@ -323,7 +320,7 @@ def get_equivalent_states(dfa):
         if (p in F) == (q in F)
     }
 
-    def delta(state, char):
+    def delta(state, char):  # type: (NodeType, String) -> NodeType
         return dfa.delta[state][char]
 
     # Now proceed in a backtracking search for all 1-character disproofs of
@@ -345,13 +342,16 @@ def get_equivalent_states(dfa):
     return equivalent | {(q, p) for p, q in equivalent}
 
 
-def minimize_dfa(dfa):
+T = typing.TypeVar('T')
+
+
+def minimize_dfa(dfa):  # type: (DFA[T]) -> DFA[frozenset[T]]
     """
     Constructs a minimized DFA by combining equivalent states.
     """
     equivalent_states = get_equivalent_states(dfa)
-    equivalency_classes = []
-    old_states = set(dfa.nodes())
+    equivalency_classes = []  # type: List[frozenset[T]]
+    old_states = set(dfa.nodes())  # type: Set[T]
     while old_states:
         state = old_states.pop()
         new_state = {state}
@@ -363,16 +363,16 @@ def minimize_dfa(dfa):
     old_state_to_new_state = {
         state: new_state for new_state in equivalency_classes
         for state in new_state
-    }
+    }  # type: Dict[T, frozenset[T]]
 
-    def is_accepting(new_state):
+    def is_accepting(new_state):  # type: (frozenset[T]) -> bool
         return dfa.node[next(iter(new_state))]['accepting']
 
     start = old_state_to_new_state[dfa.start]
-    new_dfa = DFA(start, is_accepting(start), alphabet=dfa.alphabet)
-    for state in equivalency_classes:
-        if state != start:
-            new_dfa.add_state(state, is_accepting(state))
+    new_dfa = DFA(start, is_accepting(start), alphabet=dfa.alphabet)  # type: DFA[frozenset[T]]
+    for equivalency_class in equivalency_classes:
+        if equivalency_class != start:
+            new_dfa.add_state(equivalency_class, is_accepting(equivalency_class))
 
     for from_state, trans in dfa.delta.items():
         for char, to_state in trans.items():
@@ -385,11 +385,10 @@ def minimize_dfa(dfa):
     return new_dfa
 
 
-def construct_integer_dfa(dfa):
+def construct_integer_dfa(dfa):  # type: (DFA) -> DFA[int]
     """
     Constructs a DFA whose states are all integers from 0 to (number of states),
     with 0 the start state.
-
     This is more efficient for some algorithms, since arrays/lists can be used
     instead of hash tables.
     """

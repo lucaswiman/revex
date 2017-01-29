@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division
 
-import abc
 import random
 import itertools
 from bisect import bisect_left
 from itertools import count
 
-import six
 from six.moves import range
+from typing import Tuple, Dict, List, Union  # noqa
 
+from revex.dfa import DFA  # noqa
 from revex.dfa import construct_integer_dfa
 from revex.dfa import EmptyLanguageError
 from revex.dfa import InfiniteLanguageError
@@ -19,8 +19,12 @@ class InvalidDistributionError(Exception):
     pass
 
 
-class DiscreteRandomVariable(list):
-    def __init__(self, counts):
+class _Distribution(list):
+    pass
+
+
+class DiscreteRandomVariable(_Distribution):
+    def __init__(self, counts):  # type: (List[float]) -> None
         total = sum(counts, 0.0)
         if total == 0:
             raise InvalidDistributionError()
@@ -40,12 +44,12 @@ class DiscreteRandomVariable(list):
         return bisect_left(self, random.random())
 
 
-class LeastFrequentRoundRobin(list):
+class LeastFrequentRoundRobin(_Distribution):
     """
     Draws in a cycle from least frequent to most frequent, ignoring indices
     with zero weighting.
     """
-    def __init__(self, counts):
+    def __init__(self, counts):  # type: (List[Union[float, int]]) -> None
         super(LeastFrequentRoundRobin, self).__init__(
             i for i, count in enumerate(counts) if counts[i] > 0)
         self.sort(key=counts.__getitem__)  # Sort indices from least to most frequent.
@@ -57,7 +61,7 @@ class LeastFrequentRoundRobin(list):
 
 class PathCounts(list):
 
-    def __init__(self, dfa):
+    def __init__(self, dfa):  # type: (DFA) -> None
         """
         Class for maintaining state path counts inside a dfa.
 
@@ -100,10 +104,9 @@ class PathCounts(list):
         return 'PathCounts(%r)' % self.dfa
 
 
-class BaseGenerator(six.with_metaclass(abc.ABCMeta)):
-    def __init__(self, dfa):
-        invalid_nodes = dfa.find_invalid_nodes()
-        if invalid_nodes:  # pragma: no cover
+class BaseGenerator(object):
+    def __init__(self, dfa):  # type: (DFA) -> None
+        if dfa.find_invalid_nodes():  # pragma: no cover
             raise ValueError('Must use a valid DFA.')
         self.dfa = construct_integer_dfa(dfa)
         self.alphabet = list(self.dfa.alphabet)
@@ -115,9 +118,8 @@ class BaseGenerator(six.with_metaclass(abc.ABCMeta)):
         # state to _some_ final/accepting state. Since these numbers can
         # be exponentially large in `n`, we use floating point numbers for efficiency.
         self.path_counts = PathCounts(self.dfa)
-        self.node_length_to_character_dist = {}
+        self.node_length_to_character_dist = {}  # type: Dict[Tuple[int, int], _Distribution]
 
-    @abc.abstractproperty
     def distribution_type(self):
         raise NotImplementedError
 

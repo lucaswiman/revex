@@ -9,20 +9,24 @@ See also https://en.wikipedia.org/wiki/Brzozowski_derivative
 """
 from __future__ import unicode_literals
 
-import abc
 import operator
 import re
 import string
 from functools import reduce, total_ordering
+from typing import Optional  # noqa
+from typing import Set  # noqa
+from typing import Sequence  # noqa
+from typing import Tuple  # noqa
 
 import six
 from parsimonious import NodeVisitor, Grammar
 
-from .dfa import RegexDFA, DEFAULT_ALPHABET
+from revex.dfa import String, DFA  # noqa
+from .dfa import DEFAULT_ALPHABET
 
 
 @total_ordering
-class RegularExpression(six.with_metaclass(abc.ABCMeta)):
+class RegularExpression(object):
     """
     A generalized regular expression, supporting:
         - ∅:               EMPTY
@@ -36,12 +40,29 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     """
     is_atomic = True
 
-    @classmethod
-    def compile(self, regex):
-        return RegexVisitor().parse(regex)
-
     def as_dfa(self, alphabet=DEFAULT_ALPHABET):
-        return RegexDFA(self, alphabet=alphabet)
+        # type: (Sequence[String]) -> DFA[RegularExpression]
+        """
+        Based of the construction here: https://drona.csa.iisc.ernet.in/~deepakd/fmcs-06/seminars/presentation.pdf  # noqa
+        Nodes are named by the regular expression that, starting at that node,
+        matches that regular expression. In particular, the "start" node is
+        labeled with `regex`.
+        """
+        dfa = DFA(
+            start=self,
+            start_accepting=self.accepting,
+            alphabet=alphabet,
+        )
+        nodes = {self}  # type: Set[RegularExpression]
+        while nodes:
+            node = nodes.pop()
+            for char in alphabet:
+                derivative = node.derivative(char)
+                if not dfa.has_node(derivative):
+                    nodes.add(derivative)
+                    dfa.add_state(derivative, derivative.accepting)
+                dfa.add_transition(node, derivative, char)
+        return dfa
 
     def __add__(self, other):
         return Concatenation(self, other)
@@ -55,26 +76,25 @@ class RegularExpression(six.with_metaclass(abc.ABCMeta)):
     def __invert__(self):
         return Complement(self)
 
-    def __mul__(self, repeat):
+    def __mul__(self, repeat):  # type: (int) -> RegularExpression
         return EPSILON if repeat == 0 else reduce(operator.add, [self] * repeat)
 
     __rmul__ = __mul__
 
-    @abc.abstractproperty
-    def accepting(self):
+    @property
+    def accepting(self):  # type: () -> bool
         """
         Whether an end-string is accepted with this regex.
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         raise NotImplementedError
 
-    def match(self, string):
+    def match(self, string):  # type: (String) -> bool
         regex = self
-        for char in string:
-            regex = regex.derivative(char)
+        for i in range(len(string)):
+            regex = regex.derivative(string[i:i+1])
         return regex.accepting
 
     @property
@@ -114,7 +134,7 @@ class _Empty(RegularExpression):
 
     accepting = False
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return EMPTY
 
     def __str__(self):
@@ -137,7 +157,7 @@ class _Epsilon(RegularExpression):
 
     accepting = True
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return EMPTY
 
     def __str__(self):
@@ -163,7 +183,7 @@ class _Dot(RegularExpression):
 
     accepting = False
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return EPSILON
 
     def __str__(self):
@@ -178,7 +198,9 @@ DOT = _Dot()
 
 @six.python_2_unicode_compatible
 class Concatenation(RegularExpression):
-    def __new__(cls, *children):
+    children = None  # type: Tuple[RegularExpression, ...]
+
+    def __new__(cls, *children):  # type: (*RegularExpression) -> RegularExpression
         flattened_children = []
         for child in children:
             if isinstance(child, Concatenation):
@@ -186,7 +208,7 @@ class Concatenation(RegularExpression):
                     flattened_children.append(subchild)
             else:
                 flattened_children.append(child)
-        children = flattened_children
+        children = tuple(flattened_children)
         if EMPTY in children:
             return EMPTY
         children = tuple(child for child in children if child is not EPSILON)
@@ -242,14 +264,15 @@ class Concatenation(RegularExpression):
 
 @six.python_2_unicode_compatible
 class Intersection(RegularExpression):
-    def __new__(cls, *children):
-        flattened_children = set()
-        for child in children:
+    children = None  # type: Tuple[RegularExpression, ...]
+
+    def __new__(cls, *children_tuple):  # type: (*RegularExpression) -> RegularExpression
+        children = set()  # type: Set[RegularExpression]
+        for child in children_tuple:
             if isinstance(child, Intersection):
-                flattened_children |= set(child.children)
+                children |= set(child.children)
             else:
-                flattened_children.add(child)
-        children = flattened_children
+                children.add(child)
         if EMPTY in children:
             return EMPTY
         elif EPSILON in children:
@@ -264,19 +287,20 @@ class Intersection(RegularExpression):
         children  = (children - charsets) - negated_charsets
         if charsets:
             charset = CharSet(reduce(operator.and_, (set(c.chars) for c in charsets)))
+            # type: Optional[CharSet]
         else:
             charset = None
         if negated_charsets:
             negated_charset = CharSet(
                 reduce(operator.or_, (set(c.chars) for c in negated_charsets)),
-                negated=True)
+                negated=True)  # type: Optional[CharSet]
         else:
             negated_charset = None
 
         if charset and negated_charset:
             # If we have a charset and a negated charset, then compute their
             # difference.
-            chars = set(charset.chars) - set(negated_charset.chars)
+            chars = set(charset.chars) - set(negated_charset.chars)  # type: Set[String]
             if not chars:  # The intersection is empty, so simplify to that.
                 return EMPTY
             else:
@@ -287,14 +311,14 @@ class Intersection(RegularExpression):
             # Now restrict chars down to those which all the other conjuncts can
             # accept. These are exactly the chars recognized by this regex, so
             # just return the charset.
-            chars = {
+            acceptable_chars = {
                 char for char in charset.chars
                 if all(child.derivative(char).accepting for child in children)
-            }
-            if not chars:
+            }  # type: Set[String]
+            if not acceptable_chars:
                 return EMPTY
             else:
-                return CharSet(chars)
+                return CharSet(acceptable_chars)
         elif negated_charset:
             children.add(charset or negated_charset)
 
@@ -315,7 +339,7 @@ class Intersection(RegularExpression):
     def accepting(self):
         return all(child.accepting for child in self.children)
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return reduce(operator.and_, (child.derivative(char) for child in self.children))
 
     def __str__(self):
@@ -327,6 +351,9 @@ class Intersection(RegularExpression):
 
 @six.python_2_unicode_compatible
 class CharSet(RegularExpression):
+    negated = None  # type: bool
+    chars = None  # type: tuple
+
     def __new__(cls, chars, negated=False):
         instance = super(CharSet, cls).__new__(cls)
         instance.chars = tuple(sorted(chars))
@@ -336,7 +363,7 @@ class CharSet(RegularExpression):
     accepting = False
     is_atomic = True
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         if self.negated:
             return EMPTY if char in self.chars else EPSILON
         else:
@@ -385,31 +412,33 @@ class CharClass(CharSet):
 
 @six.python_2_unicode_compatible
 class Union(RegularExpression):
-    def __new__(cls, *children):
-        flattened_children = set()
+    children = None  # type: Tuple[RegularExpression, ...]
+
+    def __new__(cls, *children):  # type: (*RegularExpression) -> RegularExpression
+        flattened_children = set()  # type: Set[RegularExpression]
         for child in children:
             if isinstance(child, Union):
                 flattened_children |= set(child.children)
             else:
                 flattened_children.add(child)
-        children = flattened_children
-        if children == {EMPTY}:
+        if flattened_children == {EMPTY}:
             return EMPTY
         elif EMPTY in children:
-            children.remove(EMPTY)
+            flattened_children.remove(EMPTY)
 
         char_literals = {
-            child for child in children
+            child for child in flattened_children
             if (isinstance(child, CharSet) and not child.negated)}
         if char_literals:
             chars = {char for literal in char_literals for char in literal.chars}
-            children = children - char_literals
-            children.add(CharSet(chars))
+            flattened_children = flattened_children - char_literals
+            flattened_children.add(CharSet(chars))
+        children = tuple(sorted(flattened_children))
         if len(children) == 1:
-            return children.pop()
+            return children[0]
 
         instance = super(Union, cls).__new__(cls)
-        instance.children = tuple(sorted(children))
+        instance.children = children
         return instance
 
     is_atomic = False
@@ -418,7 +447,7 @@ class Union(RegularExpression):
     def accepting(self):
         return any(child.accepting for child in self.children)
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return reduce(operator.or_, (child.derivative(char) for child in self.children))
 
     @property
@@ -434,6 +463,8 @@ class Union(RegularExpression):
 
 @six.python_2_unicode_compatible
 class Complement(RegularExpression):
+    regex = None  # type: RegularExpression
+
     def __new__(cls, regex):
         """
         Distribute inwards using De Morgan's laws to get a canonical
@@ -458,7 +489,7 @@ class Complement(RegularExpression):
     def accepting(self):
         return not self.regex.accepting
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return ~self.regex.derivative(char)
 
     @property
@@ -474,6 +505,8 @@ class Complement(RegularExpression):
 
 @six.python_2_unicode_compatible
 class Star(RegularExpression):
+    regex = None  # type: RegularExpression
+
     def __new__(cls, regex):
         if regex is EMPTY or regex is EPSILON:
             return regex
@@ -483,7 +516,7 @@ class Star(RegularExpression):
 
     accepting = True
 
-    def derivative(self, char):
+    def derivative(self, char):  # type: (String) -> RegularExpression
         return self.regex.derivative(char) + self
 
     @property
@@ -525,6 +558,9 @@ REGEX = Grammar(r'''
 
 class RegexVisitor(NodeVisitor):
     grammar = REGEX
+
+    def parse(self, regex):  # type: (String) -> RegularExpression
+        return super(RegexVisitor, self).parse(regex)
 
     def visit_re(self, node, children):
         [re] = children

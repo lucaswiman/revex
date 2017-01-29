@@ -153,7 +153,7 @@ def test_deterministic_generation():
 def test_random_walk_matches_regex(regex):
     actual = re.compile('^%s$' % regex)
     revex_regex = revex.compile(regex)
-    gen = rgen(revex_regex, alphabet=set(regex))
+    gen = rgen(revex_regex, alphabet=list(set(regex)))
     for length in islice(gen.valid_lengths_iter(), 10):
         for _ in range(10):
             rand_string = gen.generate_string(length)
