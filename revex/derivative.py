@@ -544,8 +544,11 @@ REGEX = Grammar(r'''
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") re ")"
     escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
+    escaped_binary_charcode = "\\x" ~"[0-9a-f]{2}"
+    escaped_unicode_charcode = "\\u" ~"[0-9a-f]{4}"
+    escaped_charcode = escaped_binary_charcode / escaped_unicode_charcode
     any = "."
-    char = escaped_metachar / charclass / any / non_metachar
+    char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+\[\]()|{}?]"
     positive_set = "[" set_items "]"
@@ -616,6 +619,18 @@ class RegexVisitor(NodeVisitor):
     def visit_escaped_metachar(self, node, children):
         slash, char = children
         return CharSet([char])
+
+    def visit_escaped_binary_charcode(self, node, children):
+        escape, hexcode = children
+        return CharSet([chr(int(hexcode.lstrip('0'), 16))])
+
+    def visit_escaped_unicode_charcode(self, node, children):
+        escape, hexcode = children
+        return CharSet([chr(int(hexcode.lstrip('0'), 16))])
+
+    def visit_escaped_charcode(self, node, children):
+        [child] = children
+        return child
 
     def visit_non_metachar(self, node, children):
         return CharSet(node.text)
