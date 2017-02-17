@@ -201,6 +201,12 @@ def test_escaped_characters():
     assert 'b' == '\u0062'
     assert re.compile(r'\x61\u0062').match('ab')
     assert RE(r'\x61\u0062').match('ab')
+    assert RE(r'[\x61][\u0062]').match('ab')
+
+
+def test_escaped_character_range():
+    assert re.compile(r'[\x61-\u0062]*').match('ab')
+    assert RE(r'[\x61-\u0062]*').match('ab')
 
 
 def test_email_validation_example():
