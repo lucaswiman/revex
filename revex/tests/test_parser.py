@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import re
 
 import pytest
@@ -192,3 +194,17 @@ def test_lookaround_match():
     assert RE(r'foo(?=bar).*').match('foobarasdf')
     assert RE(r'foo(?=bar).*').match('foobar')
     assert not RE(r'foo(?=bar)').match('foobar')
+
+
+def test_escaped_characters():
+    assert 'a' == '\x61'
+    assert 'b' == '\u0062'
+    assert re.compile(r'\x61\u0062').match('ab')
+    assert RE(r'\x61\u0062').match('ab')
+
+
+def test_email_validation_example():
+    # Regression test for parsing bug discovered when examining an email
+    # validation regex from http://emailregex.com/
+    regex = r'''(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])'''
+    assert RE(regex).match('foo@bar.com')
