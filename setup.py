@@ -1,4 +1,3 @@
-from os.path import exists
 from setuptools import setup
 
 setup(name='revex',
@@ -9,6 +8,6 @@ setup(name='revex',
       author_email='lucas.wiman@gmail.com',
       license='Apache 2.0',
       packages=['revex'],
-      # install_requires=open('requirements.txt').read().split('\n'),
+      install_requires=['parsimonious', 'networkx', 'six'],
       long_description='foo',
       zip_safe=False)
