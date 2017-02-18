@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 import re
 
 import pytest
-from parsimonious import VisitationError
 
 from revex import compile
 from revex.derivative import REGEX, EPSILON
@@ -192,10 +191,9 @@ def test_noncapturing_group():
 
 def test_lookaround_grammar():
     assert REGEX.parse(r'foo(?=bar).*')
-    # TODO: see `test_empty` above.
-    # assert REGEX.parse(r'foo(?=bar)')
-    # assert REGEX.parse(r'foo(?=(ab)*)')
-    # assert REGEX.parse(r'foo(?!bar)')
+    assert REGEX.parse(r'foo(?=bar)')
+    assert REGEX.parse(r'foo(?=(ab)*)')
+    assert REGEX.parse(r'foo(?!bar)')
     assert REGEX.parse(r'.*(<=bar)foo')
     assert REGEX.parse(r'.*(<!bar)foo')
     RE(r'foo(?=bar).*')
@@ -206,9 +204,12 @@ def test_lookaround_match():
     assert RE(r'foo(?=bar).*').match('foobar')
     assert not RE(r'foo(?!bar).*').match('foobar')
     assert RE(r'foo(?!bar).*').match('foobaz')
+    assert not RE(r'foo(?=bar)').match('foobar')
+
+
+@pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
+def test_grouped_lookaround():
     assert RE(r'(a(?=bar).).*(?=baz).*').match('abarbbaz')
-    # TODO: see `test_empty` above.
-    # assert not RE(r'foo(?=bar)').match('foobar')
 
 
 def test_escaped_characters():
