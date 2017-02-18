@@ -548,7 +548,7 @@ REGEX = Grammar(r'''
         charclass /
         character
 
-    group = ("(?:" / "(") re ")"
+    group = ("(?:" / "(") !("?=" / "?!" / "<=" / "<!") re ")"
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
 
@@ -596,7 +596,7 @@ class RegexVisitor(NodeVisitor):
             'Lookaround expressions not implemented: %r' % node.text)
 
     def visit_group(self, node, children):
-        lparen, re, rparen = children
+        lparen, _, re, rparen = children
         return re
 
     def visit_charclass(self, node, children):
