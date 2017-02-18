@@ -201,12 +201,12 @@ def test_lookaround_grammar():
     RE(r'foo(?=bar).*')
 
 
-@pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
 def test_lookaround_match():
     assert RE(r'foo(?=bar).*').match('foobarasdf')
     assert RE(r'foo(?=bar).*').match('foobar')
     assert not RE(r'foo(?!bar).*').match('foobar')
     assert RE(r'foo(?!bar).*').match('foobaz')
+    assert RE(r'(a(?=bar).).*(?=baz).*').match('abarbbaz')
     # TODO: see `test_empty` above.
     # assert not RE(r'foo(?=bar)').match('foobar')
 
