@@ -551,15 +551,14 @@ REGEX = Grammar(r'''
         ("\\x" ~"[0-9a-f]{2}"i) /
         ("\\u" ~"[0-9a-f]{4}"i)
 
-    escaped_charcode = escaped_numeric_character / escaped_numeric_character
     any = "."
-    char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
+    char = escaped_character / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+()|{?]"
     character_set = "[" "^"? set_items "]"
     set_char = escaped_numeric_character / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"
-    set_items = (range / escaped_set_char / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
+    set_items = (range / escaped_set_char / escaped_character / ~"[^\\]]" )+
     range = set_char  "-" set_char
 ''')  # noqa
 
@@ -624,9 +623,13 @@ class RegexVisitor(NodeVisitor):
         [child] = children
         return child
 
+    def visit_escaped_character(self, node, children):
+        [char] = children
+        return CharSet([char])
+
     def visit_escaped_metachar(self, node, children):
         slash, char = children
-        return CharSet([char])
+        return char
 
     def visit_escaped_numeric_character(self, node, children):
         [[escape, character_code]] = children
