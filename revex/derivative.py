@@ -534,7 +534,7 @@ class Star(RegularExpression):
 REGEX = Grammar(r'''
     re = union / concatenation
     union = (concatenation "|")+ concatenation
-    concatenation = (quantified / repeat_fixed / repeat_range / literal)+
+    concatenation = (quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
@@ -546,8 +546,7 @@ REGEX = Grammar(r'''
         character_set /
         escaped_character /
         charclass /
-        any /
-        non_metachar
+        character
 
     group = ("(?:" / "(") re ")"
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
@@ -557,7 +556,7 @@ REGEX = Grammar(r'''
         escaped_metachar /
         escaped_numeric_character /
         escaped_whitespace
-    escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
+    escaped_metachar = "\\" ~"[.$^\\\\*+()|{}?\\][]"
     escaped_numeric_character =
         ("\\"  ~"[0-7]{3}") /
         ("\\x" ~"[0-9a-f]{2}"i) /
@@ -565,9 +564,8 @@ REGEX = Grammar(r'''
         ("\\U" ~"[0-9a-f]{8}"i)
     escaped_whitespace = "\\" ~"[ntvr]"
 
-    any = "."
     charclass = "\\" ~"[dDwWsS]"
-    non_metachar = ~"[^.$^\\*+()|?]"
+    character = ~"[^$^\\*+()|?]"
     character_set = "[" "^"? set_items "]"
     set_char = escaped_numeric_character / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"
@@ -587,7 +585,7 @@ class RegexVisitor(NodeVisitor):
         return re
 
     def visit_concatenation(self, node, children):
-        return reduce(operator.add, [re for [re] in children])
+        return reduce(operator.add, [re for [re] in children], EPSILON)
 
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.
@@ -659,11 +657,13 @@ class RegexVisitor(NodeVisitor):
         slash, char = node.text
         return char
 
-    def visit_non_metachar(self, node, children):
-        return CharSet(node.text)
-
-    def visit_any(self, node, children):
-        return DOT
+    def visit_character(self, node, children):
+        char = node.text
+        assert len(char) == 1, 'bug %s' % char
+        if char == '.':
+            return DOT
+        else:
+            return CharSet(node.text)
 
     def visit_set_char(self, node, children):
         [char] = children
