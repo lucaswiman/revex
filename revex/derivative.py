@@ -632,10 +632,10 @@ class RegexVisitor(NodeVisitor):
         [[escape, character_code]] = children
         if escape == '\\':
             # Octal escape code like '\077'
-            return chr(int(character_code.lstrip('0'), 8))
+            return chr(int(character_code, 8))
         elif escape in ('\\u', '\\x'):
             # hex escape like '\xff'
-            return chr(int(character_code.lstrip('0'), 16))
+            return chr(int(character_code, 16))
         else:
             raise NotImplementedError('Unhandled character escape %s' % escape)
 

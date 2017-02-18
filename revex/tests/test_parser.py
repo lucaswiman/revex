@@ -204,6 +204,10 @@ def test_escaped_characters():
     assert RE(r'\x61\u0062\143').match('abc')
     assert RE(r'[\x61][\u0062][\143]').match('abc')
     assert RE(r'[\x61-\143]+').match('abc')
+    assert RE(r'\u00a3\u00A3').match('££')
+    assert RE(r'\x00').match('\x00')
+    assert RE(r'\u0000').match('\x00')
+    assert RE(r'\000').match('\x00')
 
     assert RE(r'[\)]').match(')')
     assert not RE(r'[\)]').match('\\')
@@ -216,7 +220,6 @@ def test_escaped_characters():
     assert RE(r'[\]]').match(']')
     assert RE(r'[a]\]').match('a]')
     assert RE(r'\{}').match('{}')
-    assert RE(r'\u00a3\u00A3').match('££')
 
 
 def test_escaped_character_range():
