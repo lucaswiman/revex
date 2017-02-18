@@ -598,10 +598,6 @@ class RegexVisitor(NodeVisitor):
         lparen, re, rparen = children
         return re
 
-    def visit_char(self, node, children):
-        [char] = children
-        return char
-
     def visit_charclass(self, node, children):
         slash, charclass = children
         return CharClass(charclass)
@@ -655,10 +651,6 @@ class RegexVisitor(NodeVisitor):
     def visit_escaped_set_char(self, node, children):
         slash, char = node.text
         return char
-
-    def visit_escaped_charcode(self, node, children):
-        [child] = children
-        return CharSet([child])
 
     def visit_non_metachar(self, node, children):
         return CharSet(node.text)
