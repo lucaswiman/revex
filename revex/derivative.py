@@ -534,7 +534,7 @@ class Star(RegularExpression):
 REGEX = Grammar(r'''
     re = union / concatenation
     union = (concatenation "|")+ concatenation
-    concatenation = (quantified / repeat_fixed / repeat_range / literal)+
+    concatenation = (quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
@@ -585,7 +585,7 @@ class RegexVisitor(NodeVisitor):
         return re
 
     def visit_concatenation(self, node, children):
-        return reduce(operator.add, [re for [re] in children])
+        return reduce(operator.add, [re for [re] in children], EPSILON)
 
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.

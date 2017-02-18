@@ -20,9 +20,12 @@ class RE(object):
         return self.re.match(string)
 
 
-@pytest.mark.xfail(reason='TODO')
 def test_empty():
     assert compile('') == EPSILON
+    assert RE('(a|)').match('')
+    assert RE('(a|)').match('a')
+    assert RE('a|').match('')
+    assert RE('a|').match('a')
 
 
 def test_string_literal_regex():
