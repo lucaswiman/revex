@@ -532,7 +532,8 @@ class Star(RegularExpression):
 
 
 REGEX = Grammar(r'''
-    re = union / concatenation
+    re = new_lookaround / union / concatenation
+    new_lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
     union = (concatenation "|")+ concatenation
     concatenation = (quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
@@ -541,7 +542,6 @@ REGEX = Grammar(r'''
 
     literal =
         comment /
-        lookaround /
         group /
         character_set /
         escaped_character /
@@ -549,7 +549,6 @@ REGEX = Grammar(r'''
         character
 
     group = ("(?:" / "(") !("?=" / "?!" / "<=" / "<!") re ")"
-    lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
 
     escaped_character =
@@ -587,13 +586,27 @@ class RegexVisitor(NodeVisitor):
     def visit_concatenation(self, node, children):
         return reduce(operator.add, [re for [re] in children], EPSILON)
 
+    def visit_new_lookaround(self, node, children):
+        # new_lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
+        [pre_re], lparen, [assertion_type], lookaround_re, rparen, post_re = children
+        whatever = Star(DOT)
+        if assertion_type == '?=':
+            # Positive lookahead.
+            return pre_re + ((lookaround_re + whatever) & post_re)
+        elif assertion_type == '?!':
+            # Negative lookahead.
+            return pre_re + (~(lookaround_re + whatever) & post_re)
+        elif assertion_type == '<=':
+            # Positive lookbehind.
+            return (pre_re & (lookaround_re + whatever)) + post_re
+        elif assertion_type == '<!':
+            return (pre_re & ~(lookaround_re + whatever)) + post_re
+        else:
+            raise NotImplementedError(assertion_type)
+
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.
         return EPSILON
-
-    def visit_lookaround(self, node, childen):
-        raise NotImplementedError(
-            'Lookaround expressions not implemented: %r' % node.text)
 
     def visit_group(self, node, children):
         lparen, _, re, rparen = children
