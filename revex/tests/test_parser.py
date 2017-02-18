@@ -199,9 +199,10 @@ def test_lookaround_match():
 def test_escaped_characters():
     assert 'a' == '\x61'
     assert 'b' == '\u0062'
-    assert re.compile(r'\x61\u0062').match('ab')
-    assert RE(r'\x61\u0062').match('ab')
-    assert RE(r'[\x61][\u0062]').match('ab')
+    assert 'c' == '\143'
+    assert RE(r'\x61\u0062\143').match('abc')
+    assert RE(r'[\x61][\u0062][\143]').match('abc')
+    assert RE(r'[\x61-\143]+').match('abc')
 
     assert RE(r'[\)]').match(')')
     assert not RE(r'[\)]').match('\\')
