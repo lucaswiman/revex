@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import re
@@ -215,6 +216,7 @@ def test_escaped_characters():
     assert RE(r'[\]]').match(']')
     assert RE(r'[a]\]').match('a]')
     assert RE(r'\{}').match('{}')
+    assert RE(r'\u00a3\u00A3').match('££')
 
 
 def test_escaped_character_range():

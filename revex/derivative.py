@@ -548,8 +548,8 @@ REGEX = Grammar(r'''
     escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
     escaped_numeric_character =
         ("\\"  ~"[0-7]{3}") /
-        ("\\x" ~"[0-9a-f]{2}") /
-        ("\\u" ~"[0-9a-f]{4}")
+        ("\\x" ~"[0-9a-f]{2}"i) /
+        ("\\u" ~"[0-9a-f]{4}"i)
 
     escaped_charcode = escaped_numeric_character / escaped_numeric_character
     any = "."
