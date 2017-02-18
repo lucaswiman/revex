@@ -537,7 +537,7 @@ REGEX = Grammar(r'''
     quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = comment / lookaround / group / negative_set / positive_set / char
+    literal = comment / lookaround / group / character_set / char
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") re ")"
@@ -551,8 +551,7 @@ REGEX = Grammar(r'''
     char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+()|{?]"
-    positive_set = "[" set_items "]"
-    negative_set = "[^" set_items "]"
+    character_set = "[" "^"? set_items "]"
     set_char = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"
     set_items = (range / escaped_set_char / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
@@ -666,14 +665,12 @@ class RegexVisitor(NodeVisitor):
             for item, in children]
         return reduce(operator.or_, items)
 
-    def visit_positive_set(self, node, children):
-        [lbrac, inner, rbrac] = children
-        return inner
-
-    def visit_negative_set(self, node, children):
-        [lbrac, inner, rbrac] = children
-        assert isinstance(inner, CharSet) and inner.negated is False
-        return CharSet(inner.chars, negated=True)
+    def visit_character_set(self, node, children):
+        [lbrac, negated, inner, rbrac] = children
+        if negated:
+            return CharSet(inner.chars, negated=True)
+        else:
+            return inner
 
     def visit_repeat_fixed(self, node, children):
         regex, lbrac, repeat_count, rbrac = children
