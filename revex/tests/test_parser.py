@@ -233,6 +233,8 @@ def test_escaped_characters():
     escapable_chars = '.$^\\*+()|{}?]['
     for char in escapable_chars:
         assert RE(r'\%s' % char).match(char)
+    for char in escapable_chars:
+        assert RE(r'[\%s]' % char).match(char)
 
     assert RE(r'\r').match('\r')
     assert RE(r'\n').match('\n')
