@@ -533,10 +533,8 @@ class Star(RegularExpression):
 REGEX = Grammar(r'''
     re = union / concatenation
     union = (concatenation "|")+ concatenation
-    concatenation = (star / plus / repeat_fixed / repeat_range / optional / literal)+
-    star = literal "*"
-    plus = literal "+"
-    optional = literal "?"
+    concatenation = (quantified / repeat_fixed / repeat_range / literal)+
+    quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
     literal = comment / lookaround / group / negative_set / positive_set / char
@@ -606,13 +604,16 @@ class RegexVisitor(NodeVisitor):
         disjuncts.append(last_disjunct)
         return reduce(operator.or_, disjuncts)
 
-    def visit_star(self, node, children):
-        re, star_char = children
-        return Star(re)
-
-    def visit_plus(self, node, children):
-        re, plus_char = children
-        return re + Star(re)
+    def visit_quantified(self, node, children):
+        regex, quantifier = children
+        if quantifier == '?':
+            return regex | EPSILON
+        elif quantifier == '*':
+            return Star(regex)
+        elif quantifier == '+':
+            return regex + Star(regex)
+        else:
+            raise NotImplementedError('Unhandled quanitifier %s' % quantifier)
 
     def visit_literal(self, node, children):
         # Why doesn't parsimonious do this for you?
@@ -695,10 +696,6 @@ class RegexVisitor(NodeVisitor):
                 [regex * repeat for repeat in range(0, max_repeat - min_repeat + 1)])
 
         return repeated + opt
-
-    def visit_optional(self, node, children):
-        regex, question_mark = children
-        return regex | EPSILON
 
     def generic_visit(self, node, children):
         return children or node.text
