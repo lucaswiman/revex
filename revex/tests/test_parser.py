@@ -208,6 +208,7 @@ def test_escaped_characters():
     assert RE(r'[\x61][\u0062][\143]').match('abc')
     assert RE(r'[\x61-\143]+').match('abc')
     assert RE(r'\u00a3\u00A3').match('££')
+    assert RE(r'\U0001f62b').match(u'😫')
     assert RE(r'\x00').match('\x00')
     assert RE(r'\u0000').match('\x00')
     assert RE(r'\000').match('\x00')

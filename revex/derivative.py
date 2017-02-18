@@ -559,7 +559,8 @@ REGEX = Grammar(r'''
     escaped_numeric_character =
         ("\\"  ~"[0-7]{3}") /
         ("\\x" ~"[0-9a-f]{2}"i) /
-        ("\\u" ~"[0-9a-f]{4}"i)
+        ("\\u" ~"[0-9a-f]{4}"i) /
+        ("\\U" ~"[0-9a-f]{8}"i)
 
     any = "."
     charclass = "\\" ~"[dDwWsS]"
@@ -645,7 +646,7 @@ class RegexVisitor(NodeVisitor):
         if escape == '\\':
             # Octal escape code like '\077'
             return chr(int(character_code, 8))
-        elif escape in ('\\u', '\\x'):
+        elif escape in ('\\u', '\\x', '\\U'):
             # hex escape like '\xff'
             return chr(int(character_code, 16))
         else:
