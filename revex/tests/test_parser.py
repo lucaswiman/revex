@@ -147,6 +147,8 @@ def test_repeat():
     assert compile('ba{3}') == compile('baaa')
     assert compile('(ba){3}') == compile('bababa')
 
+    assert RE('a{}').match('a{}')
+
 
 def test_character_class_space():
     assert RE(r'\s+').match('\n\t ')
