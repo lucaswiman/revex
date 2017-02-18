@@ -531,9 +531,29 @@ class Star(RegularExpression):
         return 'Star(%r)' % self.regex
 
 
+WHATEVER = Star(DOT)
+
+
+class LookAround(RegularExpression):
+    def __new__(self, assertion_type, pre_re, lookaround_re, post_re):
+        if assertion_type == '?=':
+            # Positive lookahead.
+            return pre_re + ((lookaround_re + WHATEVER) & post_re)
+        elif assertion_type == '?!':
+            # Negative lookahead.
+            return pre_re + (~(lookaround_re + WHATEVER) & post_re)
+        elif assertion_type == '<=':
+            # Positive lookbehind.
+            return (pre_re & (lookaround_re + WHATEVER)) + post_re
+        elif assertion_type == '<!':
+            return (pre_re & ~(lookaround_re + WHATEVER)) + post_re
+        else:
+            raise NotImplementedError(assertion_type)
+
+
 REGEX = Grammar(r'''
-    re = new_lookaround / union / concatenation
-    new_lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
+    re = lookaround / union / concatenation
+    lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
     union = (concatenation "|")+ concatenation
     concatenation = (quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
@@ -586,23 +606,10 @@ class RegexVisitor(NodeVisitor):
     def visit_concatenation(self, node, children):
         return reduce(operator.add, [re for [re] in children], EPSILON)
 
-    def visit_new_lookaround(self, node, children):
-        # new_lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
+    def visit_lookaround(self, node, children):
+        # lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
         [pre_re], lparen, [assertion_type], lookaround_re, rparen, post_re = children
-        whatever = Star(DOT)
-        if assertion_type == '?=':
-            # Positive lookahead.
-            return pre_re + ((lookaround_re + whatever) & post_re)
-        elif assertion_type == '?!':
-            # Negative lookahead.
-            return pre_re + (~(lookaround_re + whatever) & post_re)
-        elif assertion_type == '<=':
-            # Positive lookbehind.
-            return (pre_re & (lookaround_re + whatever)) + post_re
-        elif assertion_type == '<!':
-            return (pre_re & ~(lookaround_re + whatever)) + post_re
-        else:
-            raise NotImplementedError(assertion_type)
+        return LookAround(assertion_type, pre_re, lookaround_re, post_re)
 
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.
