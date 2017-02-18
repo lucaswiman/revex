@@ -539,20 +539,25 @@ REGEX = Grammar(r'''
     optional = literal "?"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = comment / lookaround / group / char / negative_set / positive_set
+    literal = comment / lookaround / group / negative_set / positive_set / char
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") re ")"
-    escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
+    escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
+    escaped_binary_charcode = "\\x" ~"[0-9a-f]{2}"
+    escaped_unicode_charcode = "\\u" ~"[0-9a-f]{4}"
+    escaped_character = escaped_metachar / escaped_binary_charcode
+    escaped_charcode = escaped_binary_charcode / escaped_unicode_charcode
     any = "."
-    char = escaped_metachar / charclass / any / non_metachar
+    char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
-    non_metachar = ~"[^.$^\\*+\[\]()|{}?]"
+    non_metachar = ~"[^.$^\\*+()|{?]"
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
-    set_char = ~"[^\\]]"
-    set_items = (range / escaped_metachar / ~"[^\\]]" )+
-    range = set_char "-" set_char
+    set_char = ~"[^\\]]" / escaped_binary_charcode / escaped_unicode_charcode
+    escaped_set_char = ~"\\\\[[\\]-]"
+    set_items = (escaped_set_char / range / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
+    range = set_char  "-" set_char
 ''')
 
 
@@ -616,6 +621,22 @@ class RegexVisitor(NodeVisitor):
     def visit_escaped_metachar(self, node, children):
         slash, char = children
         return CharSet([char])
+
+    def visit_escaped_binary_charcode(self, node, children):
+        escape, hexcode = children
+        return chr(int(hexcode.lstrip('0'), 16))
+
+    def visit_escaped_unicode_charcode(self, node, children):
+        escape, hexcode = children
+        return chr(int(hexcode.lstrip('0'), 16))
+
+    def visit_escaped_set_char(self, node, children):
+        slash, char = node.text
+        return char
+
+    def visit_escaped_charcode(self, node, children):
+        [child] = children
+        return CharSet([child])
 
     def visit_non_metachar(self, node, children):
         return CharSet(node.text)
