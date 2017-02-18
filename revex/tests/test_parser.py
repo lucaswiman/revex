@@ -7,7 +7,7 @@ import pytest
 from parsimonious import VisitationError
 
 from revex import compile
-from revex.derivative import REGEX
+from revex.derivative import REGEX, EPSILON
 
 
 class RE(object):
@@ -18,6 +18,11 @@ class RE(object):
     def match(self, string):
         assert bool(self.base_re.match(string)) == self.re.match(string)
         return self.re.match(string)
+
+
+@pytest.mark.xfail(reason='TODO')
+def test_empty():
+    assert compile('') == EPSILON
 
 
 def test_string_literal_regex():
