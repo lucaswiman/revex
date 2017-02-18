@@ -229,10 +229,15 @@ def test_escaped_characters():
     assert RE(r'[\]]').match(']')
     assert RE(r'[a]\]').match('a]')
     assert RE(r'\{}').match('{}')
-    assert RE(r'\}').match('}')
-    assert RE(r'\)').match(')')
 
+    escapable_chars = '.$^\\*+()|{}?]['
+    for char in escapable_chars:
+        assert RE(r'\%s' % char).match(char)
+
+    assert RE(r'\r').match('\r')
     assert RE(r'\n').match('\n')
+    assert RE(r'\t').match('\t')
+    assert RE(r'\v').match('\v')
 
 
 def test_escaped_character_range():
