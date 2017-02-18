@@ -229,6 +229,8 @@ def test_escaped_characters():
     assert RE(r'[\]]').match(']')
     assert RE(r'[a]\]').match('a]')
     assert RE(r'\{}').match('{}')
+    assert RE(r'\}').match('}')
+    assert RE(r'\)').match(')')
 
     assert RE(r'\n').match('\n')
 
