@@ -556,7 +556,7 @@ REGEX = Grammar(r'''
         escaped_metachar /
         escaped_numeric_character /
         escaped_whitespace
-    escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
+    escaped_metachar = "\\" ~"[.$^\\\\*+()|{}?\\][]"
     escaped_numeric_character =
         ("\\"  ~"[0-7]{3}") /
         ("\\x" ~"[0-9a-f]{2}"i) /
