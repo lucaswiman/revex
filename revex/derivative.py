@@ -12,6 +12,7 @@ from __future__ import unicode_literals
 import operator
 import re
 import string
+from ast import literal_eval
 from functools import reduce, total_ordering
 from typing import Optional  # noqa
 from typing import Set  # noqa
@@ -554,13 +555,15 @@ REGEX = Grammar(r'''
 
     escaped_character =
         escaped_metachar /
-        escaped_numeric_character
+        escaped_numeric_character /
+        escaped_whitespace
     escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
     escaped_numeric_character =
         ("\\"  ~"[0-7]{3}") /
         ("\\x" ~"[0-9a-f]{2}"i) /
         ("\\u" ~"[0-9a-f]{4}"i) /
         ("\\U" ~"[0-9a-f]{8}"i)
+    escaped_whitespace = "\\" ~"[ntvr]"
 
     any = "."
     charclass = "\\" ~"[dDwWsS]"
@@ -647,6 +650,10 @@ class RegexVisitor(NodeVisitor):
             return chr(int(character_code, 16))
         else:
             raise NotImplementedError('Unhandled character escape %s' % escape)
+
+    def visit_escaped_whitespace(self, node, children):
+        slash, char = children
+        return literal_eval('"\%s"' % char)  # type: ignore
 
     def visit_escaped_set_char(self, node, children):
         slash, char = node.text

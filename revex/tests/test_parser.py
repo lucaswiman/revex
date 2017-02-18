@@ -225,6 +225,8 @@ def test_escaped_characters():
     assert RE(r'[a]\]').match('a]')
     assert RE(r'\{}').match('{}')
 
+    assert RE(r'\n').match('\n')
+
 
 def test_escaped_character_range():
     assert re.compile(r'[\x61-\u0062]*').match('ab')
