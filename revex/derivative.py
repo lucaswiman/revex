@@ -537,7 +537,17 @@ REGEX = Grammar(r'''
     quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = comment / lookaround / group / character_set / char
+
+    literal =
+        comment /
+        lookaround /
+        group /
+        character_set /
+        escaped_character /
+        charclass /
+        any /
+        non_metachar
+
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") re ")"
@@ -552,7 +562,6 @@ REGEX = Grammar(r'''
         ("\\u" ~"[0-9a-f]{4}"i)
 
     any = "."
-    char = escaped_character / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+()|{?]"
     character_set = "[" "^"? set_items "]"
