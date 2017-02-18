@@ -544,19 +544,20 @@ REGEX = Grammar(r'''
 
     escaped_character =
         escaped_metachar /
-        escaped_hex_character /
-        escaped_octal_character
+        escaped_numeric_character
     escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
-    escaped_hex_character = ("\\x" ~"[0-9a-f]{2}") / ("\\u" ~"[0-9a-f]{4}")
-    escaped_octal_character = "\\" ~"[0-7]{3}"
+    escaped_numeric_character =
+        ("\\"  ~"[0-7]{3}") /
+        ("\\x" ~"[0-9a-f]{2}") /
+        ("\\u" ~"[0-9a-f]{4}")
 
-    escaped_charcode = escaped_hex_character / escaped_octal_character
+    escaped_charcode = escaped_numeric_character / escaped_numeric_character
     any = "."
     char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+()|{?]"
     character_set = "[" "^"? set_items "]"
-    set_char = escaped_hex_character / escaped_octal_character / ~"[^\\]]"
+    set_char = escaped_numeric_character / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"
     set_items = (range / escaped_set_char / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
     range = set_char  "-" set_char
@@ -627,13 +628,16 @@ class RegexVisitor(NodeVisitor):
         slash, char = children
         return CharSet([char])
 
-    def visit_escaped_hex_character(self, node, children):
-        [[escape, hexcode]] = children
-        return chr(int(hexcode.lstrip('0'), 16))
-
-    def visit_escaped_octal_character(self, node, children):
-        escape, octcode = children
-        return chr(int(octcode.lstrip('0'), 8))
+    def visit_escaped_numeric_character(self, node, children):
+        [[escape, character_code]] = children
+        if escape == '\\':
+            # Octal escape code like '\077'
+            return chr(int(character_code.lstrip('0'), 8))
+        elif escape in ('\\u', '\\x'):
+            # hex escape like '\xff'
+            return chr(int(character_code.lstrip('0'), 16))
+        else:
+            raise NotImplementedError('Unhandled character escape %s' % escape)
 
     def visit_escaped_set_char(self, node, children):
         slash, char = node.text
