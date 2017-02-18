@@ -543,7 +543,7 @@ REGEX = Grammar(r'''
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") re ")"
-    escaped_metachar = "\\" ~"[.$^\\*+\[\]()|{}?]"
+    escaped_metachar = "\\" ~"[.$^\\*+()|{}?]"
     escaped_binary_charcode = "\\x" ~"[0-9a-f]{2}"
     escaped_unicode_charcode = "\\u" ~"[0-9a-f]{4}"
     escaped_character = escaped_metachar / escaped_binary_charcode
@@ -555,7 +555,8 @@ REGEX = Grammar(r'''
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
     set_char = ~"[^\\]]" / escaped_binary_charcode / escaped_unicode_charcode
-    set_items = (range / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
+    escaped_set_char = ~"\\\\[[\\]-]"
+    set_items = (escaped_set_char / range / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
     range = set_char  "-" set_char
 ''')
 
@@ -628,6 +629,10 @@ class RegexVisitor(NodeVisitor):
     def visit_escaped_unicode_charcode(self, node, children):
         escape, hexcode = children
         return chr(int(hexcode.lstrip('0'), 16))
+
+    def visit_escaped_set_char(self, node, children):
+        slash, char = node.text
+        return char
 
     def visit_escaped_charcode(self, node, children):
         [child] = children
