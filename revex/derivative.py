@@ -533,31 +533,42 @@ class Star(RegularExpression):
 REGEX = Grammar(r'''
     re = union / concatenation
     union = (concatenation "|")+ concatenation
-    concatenation = (star / plus / repeat_fixed / repeat_range / optional / literal)+
-    star = literal "*"
-    plus = literal "+"
-    optional = literal "?"
+    concatenation = (quantified / repeat_fixed / repeat_range / literal)+
+    quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-    literal = comment / lookaround / group / negative_set / positive_set / char
+
+    literal =
+        comment /
+        lookaround /
+        group /
+        character_set /
+        escaped_character /
+        charclass /
+        any /
+        non_metachar
+
+    group = ("(?:" / "(") re ")"
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
-    group = ("(?:" / "(") re ")"
+
+    escaped_character =
+        escaped_metachar /
+        escaped_numeric_character
     escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
-    escaped_binary_hexcode = "\\x" ~"[0-9a-f]{2}"
-    escaped_octal = "\\" ~"[0-7]{3}"
-    escaped_unicode_hexcode = "\\u" ~"[0-9a-f]{4}"
-    escaped_character = escaped_metachar / escaped_binary_hexcode / escaped_octal / escaped_unicode_hexcode
-    escaped_charcode = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal
+    escaped_numeric_character =
+        ("\\"  ~"[0-7]{3}") /
+        ("\\x" ~"[0-9a-f]{2}"i) /
+        ("\\u" ~"[0-9a-f]{4}"i) /
+        ("\\U" ~"[0-9a-f]{8}"i)
+
     any = "."
-    char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
-    non_metachar = ~"[^.$^\\*+()|{?]"
-    positive_set = "[" set_items "]"
-    negative_set = "[^" set_items "]"
-    set_char = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal / ~"[^\\]]"
+    non_metachar = ~"[^.$^\\*+()|?]"
+    character_set = "[" "^"? set_items "]"
+    set_char = escaped_numeric_character / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"
-    set_items = (range / escaped_set_char / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
+    set_items = (range / escaped_set_char / escaped_character / ~"[^\\]]" )+
     range = set_char  "-" set_char
 ''')  # noqa
 
@@ -587,10 +598,6 @@ class RegexVisitor(NodeVisitor):
         lparen, re, rparen = children
         return re
 
-    def visit_char(self, node, children):
-        [char] = children
-        return char
-
     def visit_charclass(self, node, children):
         slash, charclass = children
         return CharClass(charclass)
@@ -606,42 +613,44 @@ class RegexVisitor(NodeVisitor):
         disjuncts.append(last_disjunct)
         return reduce(operator.or_, disjuncts)
 
-    def visit_star(self, node, children):
-        re, star_char = children
-        return Star(re)
-
-    def visit_plus(self, node, children):
-        re, plus_char = children
-        return re + Star(re)
+    def visit_quantified(self, node, children):
+        regex, quantifier = children
+        if quantifier == '?':
+            return regex | EPSILON
+        elif quantifier == '*':
+            return Star(regex)
+        elif quantifier == '+':
+            return regex + Star(regex)
+        else:
+            raise NotImplementedError('Unhandled quanitifier %s' % quantifier)
 
     def visit_literal(self, node, children):
         # Why doesn't parsimonious do this for you?
         [child] = children
         return child
 
-    def visit_escaped_metachar(self, node, children):
-        slash, char = children
+    def visit_escaped_character(self, node, children):
+        [char] = children
         return CharSet([char])
 
-    def visit_escaped_binary_hexcode(self, node, children):
-        escape, hexcode = children
-        return chr(int(hexcode.lstrip('0'), 16))
+    def visit_escaped_metachar(self, node, children):
+        slash, char = children
+        return char
 
-    def visit_escaped_unicode_hexcode(self, node, children):
-        escape, hexcode = children
-        return chr(int(hexcode.lstrip('0'), 16))
-
-    def visit_escaped_octal(self, node, children):
-        escape, octcode = children
-        return chr(int(octcode.lstrip('0'), 8))
+    def visit_escaped_numeric_character(self, node, children):
+        [[escape, character_code]] = children
+        if escape == '\\':
+            # Octal escape code like '\077'
+            return chr(int(character_code, 8))
+        elif escape in ('\\u', '\\x', '\\U'):
+            # hex escape like '\xff'
+            return chr(int(character_code, 16))
+        else:
+            raise NotImplementedError('Unhandled character escape %s' % escape)
 
     def visit_escaped_set_char(self, node, children):
         slash, char = node.text
         return char
-
-    def visit_escaped_charcode(self, node, children):
-        [child] = children
-        return CharSet([child])
 
     def visit_non_metachar(self, node, children):
         return CharSet(node.text)
@@ -665,14 +674,12 @@ class RegexVisitor(NodeVisitor):
             for item, in children]
         return reduce(operator.or_, items)
 
-    def visit_positive_set(self, node, children):
-        [lbrac, inner, rbrac] = children
-        return inner
-
-    def visit_negative_set(self, node, children):
-        [lbrac, inner, rbrac] = children
-        assert isinstance(inner, CharSet) and inner.negated is False
-        return CharSet(inner.chars, negated=True)
+    def visit_character_set(self, node, children):
+        [lbrac, negated, inner, rbrac] = children
+        if negated:
+            return CharSet(inner.chars, negated=True)
+        else:
+            return inner
 
     def visit_repeat_fixed(self, node, children):
         regex, lbrac, repeat_count, rbrac = children
@@ -695,10 +702,6 @@ class RegexVisitor(NodeVisitor):
                 [regex * repeat for repeat in range(0, max_repeat - min_repeat + 1)])
 
         return repeated + opt
-
-    def visit_optional(self, node, children):
-        regex, question_mark = children
-        return regex | EPSILON
 
     def generic_visit(self, node, children):
         return children or node.text
