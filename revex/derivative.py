@@ -544,21 +544,22 @@ REGEX = Grammar(r'''
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") re ")"
     escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
-    escaped_binary_charcode = "\\x" ~"[0-9a-f]{2}"
-    escaped_unicode_charcode = "\\u" ~"[0-9a-f]{4}"
-    escaped_character = escaped_metachar / escaped_binary_charcode
-    escaped_charcode = escaped_binary_charcode / escaped_unicode_charcode
+    escaped_binary_hexcode = "\\x" ~"[0-9a-f]{2}"
+    escaped_octal = "\\" ~"[0-7]{3}"
+    escaped_unicode_hexcode = "\\u" ~"[0-9a-f]{4}"
+    escaped_character = escaped_metachar / escaped_binary_hexcode / escaped_octal / escaped_unicode_hexcode
+    escaped_charcode = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal
     any = "."
     char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+()|{?]"
     positive_set = "[" set_items "]"
     negative_set = "[^" set_items "]"
-    set_char = ~"[^\\]]" / escaped_binary_charcode / escaped_unicode_charcode
+    set_char = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"
-    set_items = (escaped_set_char / range / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
+    set_items = (range / escaped_set_char / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
     range = set_char  "-" set_char
-''')
+''')  # noqa
 
 
 class RegexVisitor(NodeVisitor):
@@ -622,13 +623,17 @@ class RegexVisitor(NodeVisitor):
         slash, char = children
         return CharSet([char])
 
-    def visit_escaped_binary_charcode(self, node, children):
+    def visit_escaped_binary_hexcode(self, node, children):
         escape, hexcode = children
         return chr(int(hexcode.lstrip('0'), 16))
 
-    def visit_escaped_unicode_charcode(self, node, children):
+    def visit_escaped_unicode_hexcode(self, node, children):
         escape, hexcode = children
         return chr(int(hexcode.lstrip('0'), 16))
+
+    def visit_escaped_octal(self, node, children):
+        escape, octcode = children
+        return chr(int(octcode.lstrip('0'), 8))
 
     def visit_escaped_set_char(self, node, children):
         slash, char = node.text
@@ -645,7 +650,7 @@ class RegexVisitor(NodeVisitor):
         return DOT
 
     def visit_set_char(self, node, children):
-        char = node.text
+        [char] = children
         return char
 
     def visit_range(self, node, children):
