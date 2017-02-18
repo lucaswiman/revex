@@ -544,21 +544,19 @@ REGEX = Grammar(r'''
 
     escaped_character =
         escaped_metachar /
-        escaped_binary_hexcode /
-        escaped_octal /
-        escaped_unicode_hexcode
+        escaped_hex_character /
+        escaped_octal_character
     escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
-    escaped_binary_hexcode = "\\x" ~"[0-9a-f]{2}"
-    escaped_octal = "\\" ~"[0-7]{3}"
-    escaped_unicode_hexcode = "\\u" ~"[0-9a-f]{4}"
+    escaped_hex_character = ("\\x" ~"[0-9a-f]{2}") / ("\\u" ~"[0-9a-f]{4}")
+    escaped_octal_character = "\\" ~"[0-7]{3}"
 
-    escaped_charcode = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal
+    escaped_charcode = escaped_hex_character / escaped_octal_character
     any = "."
     char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
     charclass = "\\" ~"[dDwWsS]"
     non_metachar = ~"[^.$^\\*+()|{?]"
     character_set = "[" "^"? set_items "]"
-    set_char = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal / ~"[^\\]]"
+    set_char = escaped_hex_character / escaped_octal_character / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"
     set_items = (range / escaped_set_char / escaped_metachar / escaped_charcode / ~"[^\\]]" )+
     range = set_char  "-" set_char
@@ -629,15 +627,11 @@ class RegexVisitor(NodeVisitor):
         slash, char = children
         return CharSet([char])
 
-    def visit_escaped_binary_hexcode(self, node, children):
-        escape, hexcode = children
+    def visit_escaped_hex_character(self, node, children):
+        [[escape, hexcode]] = children
         return chr(int(hexcode.lstrip('0'), 16))
 
-    def visit_escaped_unicode_hexcode(self, node, children):
-        escape, hexcode = children
-        return chr(int(hexcode.lstrip('0'), 16))
-
-    def visit_escaped_octal(self, node, children):
+    def visit_escaped_octal_character(self, node, children):
         escape, octcode = children
         return chr(int(octcode.lstrip('0'), 8))
 
