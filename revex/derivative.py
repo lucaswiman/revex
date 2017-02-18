@@ -541,11 +541,17 @@ REGEX = Grammar(r'''
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
     group = ("(?:" / "(") re ")"
+
+    escaped_character =
+        escaped_metachar /
+        escaped_binary_hexcode /
+        escaped_octal /
+        escaped_unicode_hexcode
     escaped_metachar = "\\" ~"[.$^\\*+()|{}?\\]\\[]"
     escaped_binary_hexcode = "\\x" ~"[0-9a-f]{2}"
     escaped_octal = "\\" ~"[0-7]{3}"
     escaped_unicode_hexcode = "\\u" ~"[0-9a-f]{4}"
-    escaped_character = escaped_metachar / escaped_binary_hexcode / escaped_octal / escaped_unicode_hexcode
+
     escaped_charcode = escaped_binary_hexcode / escaped_unicode_hexcode / escaped_octal
     any = "."
     char = escaped_metachar / escaped_charcode / charclass / any / non_metachar
