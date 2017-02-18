@@ -548,9 +548,9 @@ REGEX = Grammar(r'''
         any /
         non_metachar
 
+    group = ("(?:" / "(") re ")"
     lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
-    group = ("(?:" / "(") re ")"
 
     escaped_character =
         escaped_metachar /
@@ -563,7 +563,7 @@ REGEX = Grammar(r'''
 
     any = "."
     charclass = "\\" ~"[dDwWsS]"
-    non_metachar = ~"[^.$^\\*+()|{?]"
+    non_metachar = ~"[^.$^\\*+()|?]"
     character_set = "[" "^"? set_items "]"
     set_char = escaped_numeric_character / ~"[^\\]]"
     escaped_set_char = ~"\\\\[[\\]-]"

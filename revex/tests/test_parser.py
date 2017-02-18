@@ -147,6 +147,7 @@ def test_repeat():
     assert compile('ba{3}') == compile('baaa')
     assert compile('(ba){3}') == compile('bababa')
 
+    assert RE('{').match('{')
     assert RE('a{}').match('a{}')
 
 
