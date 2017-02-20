@@ -645,9 +645,10 @@ class PositiveLookAhead(LookAhead):
 
 REGEX = Grammar(r'''
     re = lookaround / union / concatenation
-    lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
+    lookaround = (union / concatenation) "(" ("<=" / "?!" / "<!") re ")" re
+    lookahead = "(" "?=" re ")"
     union = (concatenation "|")+ concatenation
-    concatenation = (quantified / repeat_fixed / repeat_range / literal)*
+    concatenation = (lookahead / quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
@@ -704,6 +705,12 @@ class RegexVisitor(NodeVisitor):
         if assertion_type == "?=":
             return pre_re + PositiveLookAhead(lookaround_re, post_re)
         return LookAround(assertion_type, pre_re, lookaround_re, post_re)
+
+    def visit_lookahead(self, node, children):
+        # lookahead = "(" "?=" re ")"
+        lparen, quantifier, lookaround_re, rparen = children
+        assert (quantifier == "?="), 'not implemented'
+        return PositiveLookAhead(lookaround_re, EPSILON)
 
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.
