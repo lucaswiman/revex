@@ -212,6 +212,12 @@ def test_grouped_lookaround():
     assert RE(r'a(a(?=bar)|c).*').match('ac')
     assert RE(r'a(a(?=bar)|c).*').match('aabar')
 
+    assert not RE(r'(a(?!bar).).*(?=baz).*').match('abarbbaz')
+    assert not RE(r'(a(?!bar)).*(?=baz).*').match('abarbbaz')
+    assert RE(r'a((a(?!bar))|c).*').match('ac')
+    assert RE(r'a(a(?!bar)|c).*').match('ac')
+    assert not RE(r'a(a(?!bar)|c).*').match('aabar')
+
 
 def test_escaped_characters():
     assert 'a' == '\x61'

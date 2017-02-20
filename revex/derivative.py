@@ -606,9 +606,6 @@ class LookAhead(RegularExpression):
         if lookaround_re is EMPTY or suffix is EMPTY:
             # The lookahead condition has failed
             return EMPTY
-        elif lookaround_re.accepting:
-            # The lookahead condition has been satisfied
-            return suffix
         # Note that if ``post_re is EPSILON``, we could simplify to just EMPTY,
         # but we don't to allow composing at group boundaries. For example:
         # /(foo(?=bar)).*/ is parsed as /(foo + (?=bar)) + .*/
@@ -640,8 +637,8 @@ class LookAhead(RegularExpression):
 
 REGEX = Grammar(r'''
     re = lookaround / union / concatenation
-    lookaround = (union / concatenation) "(" ("<=" / "?!" / "<!") re ")" re
-    lookahead = "(" "?=" re ")"
+    lookaround = (union / concatenation) "(" ("<=" / "<!") re ")" re
+    lookahead = "(" ("?=" / "?!") re ")"
     union = (concatenation "|")+ concatenation
     concatenation = (lookahead / quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
@@ -697,14 +694,17 @@ class RegexVisitor(NodeVisitor):
     def visit_lookaround(self, node, children):
         # lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
         [pre_re], lparen, [assertion_type], lookaround_re, rparen, post_re = children
-        if assertion_type == "?=":
-            return pre_re + LookAhead(lookaround_re, post_re)
         return LookAround(assertion_type, pre_re, lookaround_re, post_re)
 
     def visit_lookahead(self, node, children):
         # lookahead = "(" "?=" re ")"
-        lparen, quantifier, lookaround_re, rparen = children
-        assert (quantifier == "?="), 'not implemented'
+        lparen, [quantifier], lookaround_re, rparen = children
+        if quantifier == "?!":
+            lookaround_re = ~(lookaround_re + WHATEVER)
+        elif quantifier == '?=':
+            lookaround_re = lookaround_re + WHATEVER
+        else:
+            raise NotImplementedError(quantifier)
         return LookAhead(lookaround_re, EPSILON)
 
     def visit_comment(self, node, children):
