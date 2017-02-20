@@ -577,8 +577,10 @@ class PositiveLookAhead(LookAhead):
         elif lookaround_re.accepting:
             # The lookahead condition has been satisfied
             return post_re
-        elif post_re is EPSILON:
-            return EMPTY
+        # Note that if ``post_re is EPSILON``, we could simplify to just EMPTY,
+        # but we don't to allow composing at group boundaries. For example:
+        # /(foo(?=bar)).*/ is parsed as /(foo + (?=bar)) + .*/
+        # Clearly /foo(?=bar)/ never matches any string.
 
         instance.lookaround_re = lookaround_re
         instance.post_re = post_re
