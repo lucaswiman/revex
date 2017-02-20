@@ -599,23 +599,23 @@ class LookAhead(RegularExpression):
     lookaround_re = None  # type: RegularExpression
     post_re = None  # type: RegularExpression
 
-    def __new__(cls, lookaround_re, post_re):
+    def __new__(cls, lookaround_re, suffix):
         instance = super(LookAhead, cls).__new__(cls)
 
-        accepting = lookaround_re.accepting and post_re.accepting
-        if lookaround_re is EMPTY or post_re is EMPTY:
+        accepting = lookaround_re.accepting and suffix.accepting
+        if lookaround_re is EMPTY or suffix is EMPTY:
             # The lookahead condition has failed
             return EMPTY
         elif lookaround_re.accepting:
             # The lookahead condition has been satisfied
-            return post_re
+            return suffix
         # Note that if ``post_re is EPSILON``, we could simplify to just EMPTY,
         # but we don't to allow composing at group boundaries. For example:
         # /(foo(?=bar)).*/ is parsed as /(foo + (?=bar)) + .*/
         # Clearly /foo(?=bar)/ never matches any string.
 
         instance.lookaround_re = lookaround_re
-        instance.post_re = post_re
+        instance.post_re = suffix
         instance.accepting = accepting
         return instance
 
@@ -625,7 +625,7 @@ class LookAhead(RegularExpression):
         return LookAhead(look_der, post_der)
 
     def __repr__(self):
-        return 'PositiveLookAhead(%r, %r)' % (self.lookaround_re, self.post_re)
+        return 'LookAhead(%r, %r)' % (self.lookaround_re, self.post_re)
 
     def __str__(self):
         return '(?=%s)%s' % (self.lookaround_re, self.post_re)
