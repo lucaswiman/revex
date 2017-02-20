@@ -238,7 +238,7 @@ class Concatenation(RegularExpression):
 
     @property
     def has_lookahead(self):  # type: () -> bool
-        return isinstance(self.children[-1], LookAhead)
+        return self.children[-1].has_lookahead
 
     @property
     def accepting(self):
@@ -466,7 +466,7 @@ class Union(RegularExpression):
 
     @property
     def has_lookahead(self):  # type: () -> bool
-        return any(isinstance(child, LookAhead) for child in self.children)
+        return any(child.has_lookahead for child in self.children)
 
     def __add__(self, other):
         lookaheads = tuple(r for r in self.children if r.has_lookahead)
@@ -518,7 +518,7 @@ class Complement(RegularExpression):
 
     @property
     def has_lookahead(self):  # type: () -> bool
-        return isinstance(self.regex, LookAhead)
+        return self.regex.has_lookahead
 
     @property
     def is_atomic(self):
@@ -557,7 +557,7 @@ class Star(RegularExpression):
 
     @property
     def has_lookahead(self):  # type: () -> bool
-        return isinstance(self.regex, LookAhead)
+        return self.regex.has_lookahead
 
     def derivative(self, char):  # type: (String) -> RegularExpression
         return self.regex.derivative(char) + self
@@ -615,6 +615,8 @@ class LookAhead(RegularExpression):
         instance.suffix = suffix
         instance.accepting = accepting
         return instance
+
+    has_lookahead = True
 
     def derivative(self, char):
         look_der = self.lookaround_re.derivative(char)
