@@ -192,8 +192,8 @@ def test_lookaround_grammar():
     assert REGEX.parse(r'foo(?=bar)')
     assert REGEX.parse(r'foo(?=(ab)*)')
     assert REGEX.parse(r'foo(?!bar)')
-    assert REGEX.parse(r'.*(<=bar)foo')
-    assert REGEX.parse(r'.*(<!bar)foo')
+    assert REGEX.parse(r'.*(?<=bar)foo')
+    assert REGEX.parse(r'.*(?<!bar)foo')
     RE(r'foo(?=bar).*')
 
 
@@ -204,7 +204,8 @@ def test_lookaround_match():
     assert RE(r'foo(?!bar).*').match('foobaz')
     assert not RE(r'foo(?=bar)').match('foobar')
 
-    assert RE(r'foo(<=foo).*').match('foobar')
+    assert RE(r'.*(?<=foo)bar').match('foobar')
+    assert not RE(r'.*(?<=foo)bar').match('foodbar')
 
 
 def test_grouped_lookaround():
