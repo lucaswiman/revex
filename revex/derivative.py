@@ -577,18 +577,18 @@ WHATEVER = Star(DOT)
 
 
 class LookAround(RegularExpression):
-    def __new__(cls, assertion_type, pre_re, lookaround_re, post_re):
+    def __new__(cls, assertion_type, pre_re, lookaround_re, suffix):
         if assertion_type == '?=':
             # Positive lookahead.
-            return pre_re + ((lookaround_re + WHATEVER) & post_re)
+            return pre_re + ((lookaround_re + WHATEVER) & suffix)
         elif assertion_type == '?!':
             # Negative lookahead.
-            return pre_re + (~(lookaround_re + WHATEVER) & post_re)
+            return pre_re + (~(lookaround_re + WHATEVER) & suffix)
         elif assertion_type == '<=':
             # Positive lookbehind.
-            return (pre_re & (lookaround_re + WHATEVER)) + post_re
+            return (pre_re & (lookaround_re + WHATEVER)) + suffix
         elif assertion_type == '<!':
-            return (pre_re & ~(lookaround_re + WHATEVER)) + post_re
+            return (pre_re & ~(lookaround_re + WHATEVER)) + suffix
         else:
             raise NotImplementedError(assertion_type)
 
@@ -597,7 +597,7 @@ class LookAround(RegularExpression):
 class LookAhead(RegularExpression):
     accepting = None  # type: bool
     lookaround_re = None  # type: RegularExpression
-    post_re = None  # type: RegularExpression
+    suffix = None  # type: RegularExpression
 
     def __new__(cls, lookaround_re, suffix):
         instance = super(LookAhead, cls).__new__(cls)
@@ -606,34 +606,34 @@ class LookAhead(RegularExpression):
         if lookaround_re is EMPTY or suffix is EMPTY:
             # The lookahead condition has failed
             return EMPTY
-        # Note that if ``post_re is EPSILON``, we could simplify to just EMPTY,
+        # Note that if ``suffix is EPSILON``, we could simplify to just EMPTY,
         # but we don't to allow composing at group boundaries. For example:
         # /(foo(?=bar)).*/ is parsed as /(foo + (?=bar)) + .*/
         # Clearly /foo(?=bar)/ never matches any string.
 
         instance.lookaround_re = lookaround_re
-        instance.post_re = suffix
+        instance.suffix = suffix
         instance.accepting = accepting
         return instance
 
     def derivative(self, char):
         look_der = self.lookaround_re.derivative(char)
-        post_der = self.post_re.derivative(char)
+        post_der = self.suffix.derivative(char)
         return LookAhead(look_der, post_der)
 
     def __repr__(self):
-        return 'LookAhead(%r, %r)' % (self.lookaround_re, self.post_re)
+        return 'LookAhead(%r, %r)' % (self.lookaround_re, self.suffix)
 
     def __str__(self):
         # TODO: show negative lookahead as (?!...) instead of (?=~...)
-        return '(?=%s)%s' % (self.lookaround_re, self.post_re)
+        return '(?=%s)%s' % (self.lookaround_re, self.suffix)
 
     @property
     def identity_tuple(self):
-        return (type(self).__name__, self.lookaround_re, self.post_re)
+        return (type(self).__name__, self.lookaround_re, self.suffix)
 
     def __add__(self, other):
-        return LookAhead(self.lookaround_re, self.post_re + other)
+        return LookAhead(self.lookaround_re, self.suffix + other)
 
 
 REGEX = Grammar(r'''
@@ -694,8 +694,8 @@ class RegexVisitor(NodeVisitor):
 
     def visit_lookaround(self, node, children):
         # lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
-        [pre_re], lparen, [assertion_type], lookaround_re, rparen, post_re = children
-        return LookAround(assertion_type, pre_re, lookaround_re, post_re)
+        [pre_re], lparen, [assertion_type], lookaround_re, rparen, suffix = children
+        return LookAround(assertion_type, pre_re, lookaround_re, suffix)
 
     def visit_lookahead(self, node, children):
         # lookahead = "(" "?=" re ")"
