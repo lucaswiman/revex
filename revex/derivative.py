@@ -601,23 +601,6 @@ class Star(RegularExpression):
 WHATEVER = Star(DOT)
 
 
-class LookAround(RegularExpression):
-    def __new__(cls, assertion_type, pre_re, lookaround_re, suffix):
-        if assertion_type == '?=':
-            # Positive lookahead.
-            return pre_re + ((lookaround_re + WHATEVER) & suffix)
-        elif assertion_type == '?!':
-            # Negative lookahead.
-            return pre_re + (~(lookaround_re + WHATEVER) & suffix)
-        elif assertion_type == '<=':
-            # Positive lookbehind.
-            return (pre_re & (lookaround_re + WHATEVER)) + suffix
-        elif assertion_type == '<!':
-            return (pre_re & ~(lookaround_re + WHATEVER)) + suffix
-        else:
-            raise NotImplementedError(assertion_type)
-
-
 @six.python_2_unicode_compatible
 class LookAhead(RegularExpression):
     accepting = None  # type: bool
@@ -714,7 +697,7 @@ class LookBehind(RegularExpression):
                 head = Concatenation(*children[:index])
                 new_lookbehind = LookBehind(
                     lookaround_re=child.lookaround_re,
-                    prefix=head + child.prefix)
+                    prefix=head + child.prefix)  # type: RegularExpression
                 return (new_lookbehind, ) + children[index + 1:]
         return children
 
@@ -737,9 +720,8 @@ class LookBehind(RegularExpression):
 
 
 REGEX = Grammar(r'''
-    re = lookaround / union / concatenation
-    lookaround = (union / concatenation) "(" ("?<!" / "NOT A REAL OPERATOR") re ")" re
-    lookahead = "(" ("?=" / "?!" / "?<=") re ")"
+    re = union / concatenation
+    lookahead = "(" ("?=" / "?!" / "?<=" / "?<!") re ")"
     union = (concatenation "|")+ concatenation
     concatenation = (lookahead / quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
@@ -792,11 +774,6 @@ class RegexVisitor(NodeVisitor):
     def visit_concatenation(self, node, children):
         return reduce(operator.add, [re for [re] in children], EPSILON)
 
-    def visit_lookaround(self, node, children):
-        # lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
-        [pre_re], lparen, [assertion_type], lookaround_re, rparen, suffix = children
-        return LookAround(assertion_type, pre_re, lookaround_re, suffix)
-
     def visit_lookahead(self, node, children):
         # lookahead = "(" "?=" re ")"
         lparen, [quantifier], lookaround_re, rparen = children
@@ -808,6 +785,9 @@ class RegexVisitor(NodeVisitor):
             return LookAhead(lookaround_re, EPSILON)
         elif quantifier == "?<=":
             lookaround_re = WHATEVER + lookaround_re
+            return LookBehind(EPSILON, lookaround_re)
+        elif quantifier == "?<!":
+            lookaround_re = ~(WHATEVER + lookaround_re)
             return LookBehind(EPSILON, lookaround_re)
         else:
             raise NotImplementedError(quantifier)
