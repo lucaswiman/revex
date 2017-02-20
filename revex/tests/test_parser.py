@@ -207,9 +207,11 @@ def test_lookaround_match():
     assert not RE(r'foo(?=bar)').match('foobar')
 
 
-@pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
 def test_grouped_lookaround():
     assert RE(r'(a(?=bar).).*(?=baz).*').match('abarbbaz')
+    assert RE(r'(a(?=bar)).*(?=baz).*').match('abarbbaz')
+    assert RE(r'a(a(?=bar)|c).*').match('ac')
+    assert RE(r'a(a(?=bar)|c).*').match('aabar')
 
 
 def test_escaped_characters():
