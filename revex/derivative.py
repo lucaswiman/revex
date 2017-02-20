@@ -625,6 +625,7 @@ class LookAhead(RegularExpression):
         return 'LookAhead(%r, %r)' % (self.lookaround_re, self.post_re)
 
     def __str__(self):
+        # TODO: show negative lookahead as (?!...) instead of (?=~...)
         return '(?=%s)%s' % (self.lookaround_re, self.post_re)
 
     @property
