@@ -207,6 +207,9 @@ def test_lookaround_match():
     assert RE(r'.*(?<=foo)bar').match('foobar')
     assert not RE(r'.*(?<=foo)bar').match('foodbar')
 
+    assert not RE(r'.*(?<!foo)bar').match('foobar')
+    assert RE(r'.*(?<!foo)bar').match('foodbar')
+
 
 def test_grouped_lookaround():
     assert RE(r'(a(?=bar).).*(?=baz).*').match('abarbbaz')
