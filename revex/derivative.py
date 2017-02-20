@@ -217,6 +217,11 @@ class Concatenation(RegularExpression):
             return EPSILON
         elif len(children) == 1:
             return children[0]
+        elif len(children) >= 2 and isinstance(children[-2], LookAhead):
+            # Combine the last two elements into a single lookahead assertion
+            # when appropriate. See LookAhead.__add__.
+            children = children[:-2] + (children[-2] + children[-1], )
+            return Concatenation(*children)
         else:
             instance = super(Concatenation, cls).__new__(cls)
             instance.children = children
@@ -535,7 +540,7 @@ WHATEVER = Star(DOT)
 
 
 class LookAround(RegularExpression):
-    def __new__(self, assertion_type, pre_re, lookaround_re, post_re):
+    def __new__(cls, assertion_type, pre_re, lookaround_re, post_re):
         if assertion_type == '?=':
             # Positive lookahead.
             return pre_re + ((lookaround_re + WHATEVER) & post_re)
@@ -549,6 +554,54 @@ class LookAround(RegularExpression):
             return (pre_re & ~(lookaround_re + WHATEVER)) + post_re
         else:
             raise NotImplementedError(assertion_type)
+
+
+class LookAhead(RegularExpression):
+    pass
+
+
+@six.python_2_unicode_compatible
+class PositiveLookAhead(LookAhead):
+    accepting = None  # type: bool
+    lookaround_re = None  # type: RegularExpression
+    post_re = None  # type: RegularEpression
+
+    def __new__(cls, lookaround_re, post_re):
+        # type: (RegularExpression, RegularExpresion) -> RegularExpression
+        instance = super(PositiveLookAhead, cls).__new__(cls)
+
+        accepting = lookaround_re.accepting and post_re.accepting
+        if lookaround_re is EMPTY or post_re is EMPTY:
+            # The lookahead condition has failed
+            return EMPTY
+        elif lookaround_re.accepting:
+            # The lookahead condition has been satisfied
+            return post_re
+        elif post_re is EPSILON:
+            return EMPTY
+
+        instance.lookaround_re = lookaround_re
+        instance.post_re = post_re
+        instance.accepting = accepting
+        return instance
+
+    def derivative(self, char):
+        look_der = self.lookaround_re.derivative(char)
+        post_der = self.post_re.derivative(char)
+        return PositiveLookAhead(look_der, post_der)
+
+    def __repr__(self):
+        return 'PositiveLookAhead(%r, %r)' % (self.lookaround_re, self.post_re)
+
+    def __str__(self):
+        return '(?=%s)%s' % (self.lookaround_re, self.post_re)
+
+    @property
+    def identity_tuple(self):
+        return (type(self).__name__, self.lookaround_re, self.post_re)
+
+    def __add__(self, other):
+        return PositiveLookAhead(self.lookaround_re, self.post_re + other)
 
 
 REGEX = Grammar(r'''
@@ -609,6 +662,8 @@ class RegexVisitor(NodeVisitor):
     def visit_lookaround(self, node, children):
         # lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
         [pre_re], lparen, [assertion_type], lookaround_re, rparen, post_re = children
+        if assertion_type == "?=":
+            return pre_re + PositiveLookAhead(lookaround_re, post_re)
         return LookAround(assertion_type, pre_re, lookaround_re, post_re)
 
     def visit_comment(self, node, children):
