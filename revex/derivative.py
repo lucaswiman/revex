@@ -89,6 +89,13 @@ class RegularExpression(object):
         """
         raise NotImplementedError
 
+    @property
+    def has_lookahead(self):  # type: () -> bool
+        """
+        Whether or not this regex has a lookahead assertion.
+        """
+        return False
+
     def derivative(self, char):  # type: (String) -> RegularExpression
         raise NotImplementedError
 
@@ -230,6 +237,10 @@ class Concatenation(RegularExpression):
     is_atomic = False
 
     @property
+    def has_lookahead(self):  # type: () -> bool
+        return isinstance(self.children[-1], LookAhead)
+
+    @property
     def accepting(self):
         return all(child.accepting for child in self.children)
 
@@ -336,6 +347,10 @@ class Intersection(RegularExpression):
             return instance
 
     is_atomic = False
+
+    @property
+    def has_lookahead(self):  # type: () -> bool
+        return any(isinstance(child, LookAhead) for child in self.children)
 
     @property
     def identity_tuple(self):
@@ -450,6 +465,20 @@ class Union(RegularExpression):
     is_atomic = False
 
     @property
+    def has_lookahead(self):  # type: () -> bool
+        return any(isinstance(child, LookAhead) for child in self.children)
+
+    def __add__(self, other):
+        lookaheads = tuple(r for r in self.children if r.has_lookahead)
+        if lookaheads:
+            non_lookaheads = tuple(r for r in self.children if not r.has_lookahead)
+            return (
+                Union(*(r + other for r in lookaheads)) |
+                (Union(*non_lookaheads) + other))
+        else:
+            return Concatenation(self, other)
+
+    @property
     def accepting(self):
         return any(child.accepting for child in self.children)
 
@@ -488,6 +517,10 @@ class Complement(RegularExpression):
             return instance
 
     @property
+    def has_lookahead(self):  # type: () -> bool
+        return isinstance(self.regex, LookAhead)
+
+    @property
     def is_atomic(self):
         return self.regex.is_atomic
 
@@ -521,6 +554,10 @@ class Star(RegularExpression):
         return instance
 
     accepting = True
+
+    @property
+    def has_lookahead(self):  # type: () -> bool
+        return isinstance(self.regex, LookAhead)
 
     def derivative(self, char):  # type: (String) -> RegularExpression
         return self.regex.derivative(char) + self

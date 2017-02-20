@@ -210,6 +210,7 @@ def test_lookaround_match():
 def test_grouped_lookaround():
     assert RE(r'(a(?=bar).).*(?=baz).*').match('abarbbaz')
     assert RE(r'(a(?=bar)).*(?=baz).*').match('abarbbaz')
+    assert RE(r'a((a(?=bar))|c).*').match('ac')
     assert RE(r'a(a(?=bar)|c).*').match('ac')
     assert RE(r'a(a(?=bar)|c).*').match('aabar')
 
