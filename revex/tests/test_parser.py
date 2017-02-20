@@ -3,8 +3,6 @@ from __future__ import unicode_literals
 
 import re
 
-import pytest
-
 from revex import compile
 from revex.derivative import REGEX, EPSILON
 

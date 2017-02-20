@@ -593,19 +593,14 @@ class LookAround(RegularExpression):
             raise NotImplementedError(assertion_type)
 
 
-class LookAhead(RegularExpression):
-    pass
-
-
 @six.python_2_unicode_compatible
-class PositiveLookAhead(LookAhead):
+class LookAhead(RegularExpression):
     accepting = None  # type: bool
     lookaround_re = None  # type: RegularExpression
-    post_re = None  # type: RegularEpression
+    post_re = None  # type: RegularExpression
 
     def __new__(cls, lookaround_re, post_re):
-        # type: (RegularExpression, RegularExpresion) -> RegularExpression
-        instance = super(PositiveLookAhead, cls).__new__(cls)
+        instance = super(LookAhead, cls).__new__(cls)
 
         accepting = lookaround_re.accepting and post_re.accepting
         if lookaround_re is EMPTY or post_re is EMPTY:
@@ -627,7 +622,7 @@ class PositiveLookAhead(LookAhead):
     def derivative(self, char):
         look_der = self.lookaround_re.derivative(char)
         post_der = self.post_re.derivative(char)
-        return PositiveLookAhead(look_der, post_der)
+        return LookAhead(look_der, post_der)
 
     def __repr__(self):
         return 'PositiveLookAhead(%r, %r)' % (self.lookaround_re, self.post_re)
@@ -640,7 +635,7 @@ class PositiveLookAhead(LookAhead):
         return (type(self).__name__, self.lookaround_re, self.post_re)
 
     def __add__(self, other):
-        return PositiveLookAhead(self.lookaround_re, self.post_re + other)
+        return LookAhead(self.lookaround_re, self.post_re + other)
 
 
 REGEX = Grammar(r'''
@@ -703,14 +698,14 @@ class RegexVisitor(NodeVisitor):
         # lookaround = (union / concatenation) "(" ("?=" / "?!" / "<=" / "<!") re ")" re
         [pre_re], lparen, [assertion_type], lookaround_re, rparen, post_re = children
         if assertion_type == "?=":
-            return pre_re + PositiveLookAhead(lookaround_re, post_re)
+            return pre_re + LookAhead(lookaround_re, post_re)
         return LookAround(assertion_type, pre_re, lookaround_re, post_re)
 
     def visit_lookahead(self, node, children):
         # lookahead = "(" "?=" re ")"
         lparen, quantifier, lookaround_re, rparen = children
         assert (quantifier == "?="), 'not implemented'
-        return PositiveLookAhead(lookaround_re, EPSILON)
+        return LookAhead(lookaround_re, EPSILON)
 
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.
