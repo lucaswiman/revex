@@ -3,9 +3,6 @@ from __future__ import unicode_literals
 
 import re
 
-import pytest
-from parsimonious import VisitationError
-
 from revex import compile
 from revex.derivative import REGEX, EPSILON
 
@@ -195,17 +192,37 @@ def test_lookaround_grammar():
     assert REGEX.parse(r'foo(?=bar)')
     assert REGEX.parse(r'foo(?=(ab)*)')
     assert REGEX.parse(r'foo(?!bar)')
-    assert REGEX.parse(r'.*(<=bar)foo')
-    assert REGEX.parse(r'.*(<!bar)foo')
-    with pytest.raises(VisitationError):
-        RE(r'foo(?=bar).*')
+    assert REGEX.parse(r'.*(?<=bar)foo')
+    assert REGEX.parse(r'.*(?<!bar)foo')
+    RE(r'foo(?=bar).*')
 
 
-@pytest.mark.xfail(reason='TODO: https://github.com/lucaswiman/revex/issues/6')
 def test_lookaround_match():
     assert RE(r'foo(?=bar).*').match('foobarasdf')
     assert RE(r'foo(?=bar).*').match('foobar')
+    assert not RE(r'foo(?!bar).*').match('foobar')
+    assert RE(r'foo(?!bar).*').match('foobaz')
     assert not RE(r'foo(?=bar)').match('foobar')
+
+    assert RE(r'.*(?<=foo)bar').match('foobar')
+    assert not RE(r'.*(?<=foo)bar').match('foodbar')
+
+    assert not RE(r'.*(?<!foo)bar').match('foobar')
+    assert RE(r'.*(?<!foo)bar').match('foodbar')
+
+
+def test_grouped_lookaround():
+    assert RE(r'(a(?=bar).).*(?=baz).*').match('abarbbaz')
+    assert RE(r'(a(?=bar)).*(?=baz).*').match('abarbbaz')
+    assert RE(r'a((a(?=bar))|c).*').match('ac')
+    assert RE(r'a(a(?=bar)|c).*').match('ac')
+    assert RE(r'a(a(?=bar)|c).*').match('aabar')
+
+    assert not RE(r'(a(?!bar).).*(?=baz).*').match('abarbbaz')
+    assert not RE(r'(a(?!bar)).*(?=baz).*').match('abarbbaz')
+    assert RE(r'a((a(?!bar))|c).*').match('ac')
+    assert RE(r'a(a(?!bar)|c).*').match('ac')
+    assert not RE(r'a(a(?!bar)|c).*').match('aabar')
 
 
 def test_escaped_characters():

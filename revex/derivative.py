@@ -89,6 +89,20 @@ class RegularExpression(object):
         """
         raise NotImplementedError
 
+    @property
+    def has_lookahead(self):  # type: () -> bool
+        """
+        Whether or not this regex has a lookahead assertion.
+        """
+        return False
+
+    @property
+    def has_lookbehind(self):  # type: () -> bool
+        """
+        Whether or not this regex has a lookbehind assertion.
+        """
+        return False
+
     def derivative(self, char):  # type: (String) -> RegularExpression
         raise NotImplementedError
 
@@ -213,6 +227,9 @@ class Concatenation(RegularExpression):
         if EMPTY in children:
             return EMPTY
         children = tuple(child for child in children if child is not EPSILON)
+        children = LookBehind.collapse_concatenation(children)
+        children = LookAhead.collapse_concatenation(children)
+
         if not children:
             return EPSILON
         elif len(children) == 1:
@@ -223,6 +240,14 @@ class Concatenation(RegularExpression):
             return instance
 
     is_atomic = False
+
+    @property
+    def has_lookahead(self):  # type: () -> bool
+        return self.children[-1].has_lookahead
+
+    @property
+    def has_lookbehind(self):  # type: () -> bool
+        return self.children[0].has_lookbehind
 
     @property
     def accepting(self):
@@ -331,6 +356,14 @@ class Intersection(RegularExpression):
             return instance
 
     is_atomic = False
+
+    @property
+    def has_lookahead(self):  # type: () -> bool
+        return any(child.has_lookahead for child in self.children)
+
+    @property
+    def has_lookbehind(self):  # type: () -> bool
+        return any(child.has_lookbehind for child in self.children)
 
     @property
     def identity_tuple(self):
@@ -445,6 +478,24 @@ class Union(RegularExpression):
     is_atomic = False
 
     @property
+    def has_lookahead(self):  # type: () -> bool
+        return any(child.has_lookahead for child in self.children)
+
+    @property
+    def has_lookbehind(self):  # type: () -> bool
+        return any(child.has_lookbehind for child in self.children)
+
+    def __add__(self, other):
+        lookaheads = tuple(r for r in self.children if r.has_lookahead)
+        if lookaheads:
+            non_lookaheads = tuple(r for r in self.children if not r.has_lookahead)
+            return (
+                Union(*(r + other for r in lookaheads)) |
+                (Union(*non_lookaheads) + other))
+        else:
+            return Concatenation(self, other)
+
+    @property
     def accepting(self):
         return any(child.accepting for child in self.children)
 
@@ -483,6 +534,14 @@ class Complement(RegularExpression):
             return instance
 
     @property
+    def has_lookahead(self):  # type: () -> bool
+        return self.regex.has_lookahead
+
+    @property
+    def has_lookbehind(self):  # type: () -> bool
+        return self.regex.has_lookbehind
+
+    @property
     def is_atomic(self):
         return self.regex.is_atomic
 
@@ -517,6 +576,14 @@ class Star(RegularExpression):
 
     accepting = True
 
+    @property
+    def has_lookahead(self):  # type: () -> bool
+        return self.regex.has_lookahead
+
+    @property
+    def has_lookbehind(self):  # type: () -> bool
+        return self.regex.has_lookbehind
+
     def derivative(self, char):  # type: (String) -> RegularExpression
         return self.regex.derivative(char) + self
 
@@ -531,25 +598,145 @@ class Star(RegularExpression):
         return 'Star(%r)' % self.regex
 
 
+WHATEVER = Star(DOT)
+
+
+@six.python_2_unicode_compatible
+class LookAhead(RegularExpression):
+    accepting = None  # type: bool
+    lookaround_re = None  # type: RegularExpression
+    suffix = None  # type: RegularExpression
+
+    def __new__(cls, lookaround_re, suffix):
+        instance = super(LookAhead, cls).__new__(cls)
+
+        accepting = lookaround_re.accepting and suffix.accepting
+        if lookaround_re is EMPTY or suffix is EMPTY:
+            # The lookahead condition has failed
+            return EMPTY
+        # Note that if ``suffix is EPSILON``, we could simplify to just EMPTY,
+        # but we don't to allow composing at group boundaries. For example:
+        # /(foo(?=bar)).*/ is parsed as /(foo + (?=bar)) + .*/
+        # Clearly /foo(?=bar)/ never matches any string.
+
+        instance.lookaround_re = lookaround_re
+        instance.suffix = suffix
+        instance.accepting = accepting
+        return instance
+
+    has_lookahead = True
+
+    @classmethod
+    def collapse_concatenation(cls, children):
+        # type: (Tuple[RegularExpression, ...]) -> Tuple[RegularExpression, ...]
+        """
+        Collapses LookAhead assertions from the right.
+        """
+        if len(children) < 2 or isinstance(children[-1], LookAhead):
+            return children
+        for index, child in reversed(list(enumerate(children))):
+            if isinstance(child, LookAhead):
+                tail = Concatenation(*children[index + 1:])
+                new_lookahead = LookAhead(
+                    lookaround_re=child.lookaround_re,
+                    suffix=child.suffix + tail)
+                return children[:index] + (new_lookahead, )
+        return children
+
+    def derivative(self, char):
+        look_der = self.lookaround_re.derivative(char)
+        post_der = self.suffix.derivative(char)
+        return LookAhead(look_der, post_der)
+
+    def __repr__(self):
+        return 'LookAhead(%r, %r)' % (self.lookaround_re, self.suffix)
+
+    def __str__(self):
+        # TODO: show negative lookahead as (?!...) instead of (?=~...)
+        return '(?=%s)%s' % (self.lookaround_re, self.suffix)
+
+    @property
+    def identity_tuple(self):
+        return (type(self).__name__, self.lookaround_re, self.suffix)
+
+    def __add__(self, other):
+        return LookAhead(self.lookaround_re, self.suffix + other)
+
+
+@six.python_2_unicode_compatible
+class LookBehind(RegularExpression):
+    accepting = None  # type: bool
+    lookaround_re = None  # type: RegularExpression
+    prefix = None  # type: RegularExpression
+
+    def __new__(cls, prefix, lookaround_re):
+        instance = super(LookBehind, cls).__new__(cls)
+
+        accepting = prefix.accepting and lookaround_re.accepting
+        if lookaround_re is EMPTY or prefix is EMPTY:
+            # The lookbehind condition has failed
+            return EMPTY
+
+        instance.lookaround_re = lookaround_re
+        instance.prefix = prefix
+        instance.accepting = accepting
+        return instance
+
+    has_lookbehind = True
+
+    @classmethod
+    def collapse_concatenation(cls, children):
+        # type: (Tuple[RegularExpression, ...]) -> Tuple[RegularExpression, ...]
+        """
+        Collapses LookBehind assertions from the left.
+        """
+        if len(children) < 2 or isinstance(children[0], LookBehind):
+            return children
+        for index, child in enumerate(children):
+            if isinstance(child, LookBehind):
+                head = Concatenation(*children[:index])
+                new_lookbehind = LookBehind(
+                    lookaround_re=child.lookaround_re,
+                    prefix=head + child.prefix)  # type: RegularExpression
+                return (new_lookbehind, ) + children[index + 1:]
+        return children
+
+    def derivative(self, char):
+        return LookBehind(
+            prefix=self.prefix.derivative(char),
+            lookaround_re=self.lookaround_re.derivative(char),
+        )
+
+    def __repr__(self):
+        return 'LookBehind(%r, %r)' % (self.prefix, self.lookaround_re, )
+
+    def __str__(self):
+        # TODO: show negative lookbehind as (<!...) instead of (<=~...)
+        return '%s(?<=%s)' % (self.prefix, self.lookaround_re)
+
+    @property
+    def identity_tuple(self):
+        return (type(self).__name__, self.prefix, self.lookaround_re)
+
+
 REGEX = Grammar(r'''
     re = union / concatenation
+    lookahead = "(" ("?=" / "?!" / "?<=" / "?<!") re ")"
     union = (concatenation "|")+ concatenation
-    concatenation = (quantified / repeat_fixed / repeat_range / literal)*
+    concatenation = (lookahead / quantified / repeat_fixed / repeat_range / literal)*
     quantified = literal ~"[*+?]"
     repeat_fixed = literal "{" ~"\d+" "}"
     repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
 
     literal =
         comment /
-        lookaround /
         group /
         character_set /
         escaped_character /
         charclass /
         character
 
-    group = ("(?:" / "(") re ")"
-    lookaround = "(" ("?=" / "?!" / "<=" / "<!") re ")"
+    group = ("(?:" / "(") !("?=" / "?!" / "?<=" / "?<!") re ")"
     comment = "(?#" ("\)" / ~"[^)]")* ")"
 
     escaped_character =
@@ -587,16 +774,30 @@ class RegexVisitor(NodeVisitor):
     def visit_concatenation(self, node, children):
         return reduce(operator.add, [re for [re] in children], EPSILON)
 
+    def visit_lookahead(self, node, children):
+        # lookahead = "(" "?=" re ")"
+        lparen, [quantifier], lookaround_re, rparen = children
+        if quantifier == "?!":
+            lookaround_re = ~(lookaround_re + WHATEVER)
+            return LookAhead(lookaround_re, EPSILON)
+        elif quantifier == '?=':
+            lookaround_re = lookaround_re + WHATEVER
+            return LookAhead(lookaround_re, EPSILON)
+        elif quantifier == "?<=":
+            lookaround_re = WHATEVER + lookaround_re
+            return LookBehind(EPSILON, lookaround_re)
+        elif quantifier == "?<!":
+            lookaround_re = ~(WHATEVER + lookaround_re)
+            return LookBehind(EPSILON, lookaround_re)
+        else:
+            raise NotImplementedError(quantifier)
+
     def visit_comment(self, node, children):
         # Just ignore the comment text and return a zero-character regex.
         return EPSILON
 
-    def visit_lookaround(self, node, childen):
-        raise NotImplementedError(
-            'Lookaround expressions not implemented: %r' % node.text)
-
     def visit_group(self, node, children):
-        lparen, re, rparen = children
+        lparen, _, re, rparen = children
         return re
 
     def visit_charclass(self, node, children):
