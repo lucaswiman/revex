@@ -674,7 +674,7 @@ class LookBehind(RegularExpression):
 
         accepting = prefix.accepting and lookaround_re.accepting
         if lookaround_re is EMPTY or prefix is EMPTY:
-            # The lookahead condition has failed
+            # The lookbehind condition has failed
             return EMPTY
 
         instance.lookaround_re = lookaround_re
@@ -688,7 +688,7 @@ class LookBehind(RegularExpression):
     def collapse_concatenation(cls, children):
         # type: (Tuple[RegularExpression, ...]) -> Tuple[RegularExpression, ...]
         """
-        Collapses LookAhead assertions from the right.
+        Collapses LookBehind assertions from the left.
         """
         if len(children) < 2 or isinstance(children[0], LookBehind):
             return children
@@ -712,7 +712,7 @@ class LookBehind(RegularExpression):
 
     def __str__(self):
         # TODO: show negative lookbehind as (<!...) instead of (<=~...)
-        return '%s(<=%s)' % (self.prefix, self.lookaround_re)
+        return '%s(?<=%s)' % (self.prefix, self.lookaround_re)
 
     @property
     def identity_tuple(self):
