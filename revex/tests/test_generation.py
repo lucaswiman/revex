@@ -2,6 +2,8 @@ from __future__ import division
 import re
 from collections import Counter
 from itertools import islice
+from sys import float_info
+import math
 
 import pytest
 
@@ -159,3 +161,14 @@ def test_random_walk_matches_regex(regex):
             rand_string = gen.generate_string(length)
             assert actual.match(rand_string), '%s should match %s' % (regex, rand_string)
             assert revex_regex.match(rand_string), '%s should match %s' % (regex, rand_string)
+
+
+def test_overflow_example():
+    # Regression test for float overflow in computing the probability
+    # distribution.
+    bits = int(math.ceil(math.log(float_info.max) / math.log(2))) - 1
+    assert (2. ** bits) * 2. == float('inf')
+    actual = re.compile(r'^[01]+$')
+    revex_regex = revex.compile(r'[01]+')
+    gen = rgen(revex_regex, alphabet=list('01'))
+    assert actual.match(gen.generate_string(bits + 1))
