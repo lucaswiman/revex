@@ -92,6 +92,8 @@ Here's another example, playing with a simple regex for validating ipv4 IPs:
         >>> construct_integer_dfa(ipv4)._draw()
 
 .. image:: https://cloud.githubusercontent.com/assets/123110/21747203/1bd5031c-d514-11e6-9db7-a18dd9dfd539.png
+    :width: 800px
+    :align: center
 
 How does it work?
 -----------------
