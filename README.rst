@@ -35,7 +35,7 @@ Consider the language of strings on the alphabet `abc`, which begin with b and h
         (b([abc][abc][abc])*)∩([abc][abc][abc][abc][abc])*
         >>> r.as_dfa('abc')._draw(full=True)
 
-Which generates the following visualization:<sup>*</sup>
+Which generates the following visualization:
 
 .. image:: https://cloud.githubusercontent.com/assets/123110/21747066/c2a956f2-d50f-11e6-9f5a-90e79cd6cf06.png
 
