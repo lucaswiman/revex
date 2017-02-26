@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division
 
-import random
 import itertools
+import math
+import random
 from bisect import bisect_left
 from itertools import count
 
@@ -21,6 +22,28 @@ class InvalidDistributionError(Exception):
 
 class _Distribution(list):
     pass
+
+
+def nplog(x):
+    """
+    Like math.log, but has sensible behavior at 0.
+
+    Similar to numpy.log.
+    """
+    if x == 0.0:
+        return float('-inf')
+    else:
+        return math.log(x)
+
+
+def logsumexp(xs):  # type: (List[float]) -> float
+    """
+    See https://en.wikipedia.org/wiki/LogSumExp
+    """
+    m = max(xs)
+    if m == float('-inf'):
+        return float('-inf')
+    return m + nplog(sum((math.exp(x - m) for x in xs), 0.0))
 
 
 class DiscreteRandomVariable(_Distribution):
