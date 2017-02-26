@@ -6,14 +6,12 @@ from itertools import islice
 from sys import float_info
 import math
 
-import hypothesis
-from hypothesis import strategies as st
 import pytest
 
 import revex
 from revex.derivative import EMPTY, RegularExpression
 from revex.generation import RandomRegularLanguageGenerator, \
-    DeterministicRegularLanguageGenerator, nplog, logsumexp
+    DeterministicRegularLanguageGenerator
 
 
 def rgen(regex, alphabet=None):
@@ -176,25 +174,3 @@ def test_overflow_example():
     gen = rgen(revex_regex, alphabet=list('01'))
     assert actual.match(gen.generate_string(bits + 1))
     assert actual.match(gen.generate_string(bits * 2))
-
-
-def assert_same_significant_digits(a, b, digits):
-    if a == b:
-        return
-    elif math.isnan(a) and math.isnan(b):
-        return
-    tolerance = 10. ** (-digits)
-    if a == 0. or b == 0.:
-        return a == pytest.approx(b, abs=tolerance)
-    assert a / b == pytest.approx(1.0, rel=tolerance)
-
-
-@hypothesis.given(
-    st.lists(min_size=1,
-             max_size=50,
-             elements=st.floats(min_value=0.0, allow_nan=False, allow_infinity=False)
-             ).filter(lambda xs: sum(xs) != float('inf')))
-@hypothesis.settings(max_examples=1000)
-def test_logsumexp(xs):
-    logs = [nplog(x) for x in xs]
-    assert_same_significant_digits(math.exp(logsumexp(logs)), sum(xs), 6)
