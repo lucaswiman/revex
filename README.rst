@@ -36,6 +36,7 @@ Consider the language of strings on the alphabet `abc`, which begin with b and h
         >>> r.as_dfa('abc')._draw(full=True)
 
 Which generates the following visualization:<sup>*</sup>
+
 .. image:: https://cloud.githubusercontent.com/assets/123110/21747066/c2a956f2-d50f-11e6-9f5a-90e79cd6cf06.png
 
 We can also introspect aspects of the language, and generate examples which match the regular expression:
