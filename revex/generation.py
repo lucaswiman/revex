@@ -115,9 +115,9 @@ class PathCounts(list):
                     # Compute the next length of paths by summing the number of
                     # paths of length self.longest_path_length among the out-edges
                     # of the node.
-                    path_counts = sum(
-                        self[self.dfa.delta[state][char]][self.longest_path_length]
-                        for char in self.dfa.alphabet)
+                    path_counts = math.exp(logsumexp([
+                        nplog(self[self.dfa.delta[state][char]][self.longest_path_length])
+                        for char in self.dfa.alphabet]))
                     self[state].append(path_counts)
                 self.longest_path_length += 1
             return self[node][path_length]
