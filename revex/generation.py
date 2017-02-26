@@ -2,7 +2,6 @@
 from __future__ import absolute_import, division
 
 import itertools
-import math
 import random
 from bisect import bisect_left
 from itertools import count
@@ -24,35 +23,13 @@ class _Distribution(list):
     pass
 
 
-def nplog(x):
-    """
-    Like math.log, but has sensible behavior at 0.
-
-    Similar to numpy.log.
-    """
-    if x == 0.0:
-        return float('-inf')
-    else:
-        return math.log(x)
-
-
-def logsumexp(xs):  # type: (List[float]) -> float
-    """
-    See https://en.wikipedia.org/wiki/LogSumExp
-    """
-    m = max(xs)
-    if m == float('-inf'):
-        return float('-inf')
-    return m + nplog(sum((math.exp(x - m) for x in xs), 0.0))
-
-
 class DiscreteRandomVariable(_Distribution):
-    def __init__(self, counts):  # type: (List[float]) -> None
-        total = logsumexp(counts)
-        if total == float('-inf'):
+    def __init__(self, weights):  # type: (List[float]) -> None
+        total = sum(weights, 0.0)
+        if total == 0:
             raise InvalidDistributionError()
         super(DiscreteRandomVariable, self).__init__(
-            math.exp(count - total) for count in counts)
+            count / total for count in weights)
         for i in range(1, len(self)):
             # Build the right endpoints to sample from.
             self[i] += self[i - 1]
@@ -74,7 +51,7 @@ class LeastFrequentRoundRobin(_Distribution):
     """
     def __init__(self, counts):  # type: (List[Union[float, int]]) -> None
         super(LeastFrequentRoundRobin, self).__init__(
-            i for i, count in enumerate(counts) if counts[i] > nplog(0))
+            i for i, count in enumerate(counts) if counts[i] > 0)
         self.sort(key=counts.__getitem__)  # Sort indices from least to most frequent.
         self.chooser = itertools.cycle(self)
 
@@ -82,15 +59,15 @@ class LeastFrequentRoundRobin(_Distribution):
         return next(self.chooser)
 
 
-class PathCounts(list):
+class PathWeights(list):
 
     def __init__(self, dfa):  # type: (DFA) -> None
         """
-        Class for maintaining state path counts inside a dfa.
+        Class for maintaining state path weights inside a dfa.
 
-        Denoted by l_{p,n} in section 2 of the Bernardi & Giménez paper,
-        path_counts[state][n] is the number of paths of length n from
-        state to _some_ final/accepting state.
+        This is a renormalized version of l_{p,n} in section 2 of the Bernardi
+        & Giménez paper, path_weights[state][n] is the proportion of paths of
+        length n from state to _some_ final/accepting state.
 
         `dfa` MUST have consecutive integer states, with 0 as the start state,
         though this is not validated.
@@ -99,8 +76,11 @@ class PathCounts(list):
         # Initialize the array with the number of zero-length paths from the
         # state to an accepting state. (i.e. 1 if the state is accepting.)
         self.states = range(len(self.dfa.node))
-        super(PathCounts, self).__init__(
-            [nplog(1.0) if self.dfa.node[state]['accepting'] else nplog(0.0)]
+        number_of_accepting_states = sum(
+            self.dfa.node[state]['accepting'] for state in self.states) or 1.0
+        super(PathWeights, self).__init__(
+            # Note that True == 1 and False == 0.
+            [self.dfa.node[state]['accepting'] / number_of_accepting_states]
             for state in self.states
         )
         self.longest_path_length = 0
@@ -111,20 +91,25 @@ class PathCounts(list):
             while path_length > self.longest_path_length:
                 # Precomputes all path lengths up to path_length by expanding
                 # breadth first search.
+                total = 0.0
                 for state in self.states:
                     # Compute the next length of paths by summing the number of
                     # paths of length self.longest_path_length among the out-edges
                     # of the node.
-                    path_counts = logsumexp([
+                    path_weight = sum(
                         self[self.dfa.delta[state][char]][self.longest_path_length]
-                        for char in self.dfa.alphabet])
-                    self[state].append(path_counts)
+                        for char in self.dfa.alphabet)
+                    total += path_weight
+                    self[state].append(path_weight)
                 self.longest_path_length += 1
+                for state in self.states:
+                    if total > 0:
+                        self[state][self.longest_path_length] /= total
             return self[node][path_length]
         return list.__getitem__(self, item)
 
     def __repr__(self):
-        return 'PathCounts(%r)' % self.dfa
+        return 'PathWeights(%r)' % self.dfa
 
 
 class BaseGenerator(object):
@@ -137,10 +122,12 @@ class BaseGenerator(object):
         self.nodes = range(0, len(self.dfa.node))
 
         # Denoted by l_{p,n} in section 2 of the Bernardi & Giménez paper,
-        # path_counts[state][n] is the number of paths of length n from
-        # state to _some_ final/accepting state. Since these numbers can
-        # be exponentially large in `n`, we use floating point numbers for efficiency.
-        self.path_counts = PathCounts(self.dfa)
+        # path_weights[state][n] is the proportion of paths of length n from
+        # state to _some_ final/accepting state. In that paper, the _counts_ are
+        # stored as floating point numbers for efficiency, but this leads to
+        # overflow when generating very long strings. In our implementation, the
+        # weights are normalized at each lengthy so they're always between 0 and 1.
+        self.path_weights = PathWeights(self.dfa)
         self.node_length_to_character_dist = {}  # type: Dict[Tuple[int, int], _Distribution]
 
     def distribution_type(self):
@@ -150,7 +137,7 @@ class BaseGenerator(object):
         if (node, length) not in self.node_length_to_character_dist:
             try:
                 dist = self.distribution_type([
-                    self.path_counts[self.dfa.delta[node][char], length - 1]
+                    self.path_weights[self.dfa.delta[node][char], length - 1]
                     for char in self.alphabet
                 ])
             except InvalidDistributionError:
@@ -170,7 +157,7 @@ class BaseGenerator(object):
         chars = []
         if length == 0 and not self.dfa.node[state]['accepting']:
             return None
-        elif self.path_counts[state, length] == nplog(0):
+        elif self.path_weights[state, length] == 0:
             return None  # No paths of the given length.
         for i in range(length):
             dist = self.get_dist_for_node_and_length(state, length - i)
@@ -192,7 +179,7 @@ class BaseGenerator(object):
             iterator = count()
 
         for length in iterator:
-            if self.path_counts[self.dfa.start, length] > nplog(0):
+            if self.path_weights[self.dfa.start, length] > 0:
                 yield length
 
 
