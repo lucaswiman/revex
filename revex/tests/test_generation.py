@@ -175,6 +175,7 @@ def test_overflow_example():
     revex_regex = revex.compile(r'[01]+')
     gen = rgen(revex_regex, alphabet=list('01'))
     assert actual.match(gen.generate_string(bits + 1))
+    assert actual.match(gen.generate_string(bits * 2))
 
 
 def assert_same_significant_digits(a, b, digits):
