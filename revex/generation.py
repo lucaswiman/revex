@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division
 
-import random
 import itertools
+import math
+import random
 from bisect import bisect_left
 from itertools import count
 
@@ -23,13 +24,35 @@ class _Distribution(list):
     pass
 
 
+def nplog(x):
+    """
+    Like math.log, but has sensible behavior at 0.
+
+    Similar to numpy.log.
+    """
+    if x == 0.0:
+        return float('-inf')
+    else:
+        return math.log(x)
+
+
+def logsumexp(xs):  # type: (List[float]) -> float
+    """
+    See https://en.wikipedia.org/wiki/LogSumExp
+    """
+    m = max(xs)
+    if m == float('-inf'):
+        return float('-inf')
+    return m + nplog(sum((math.exp(x - m) for x in xs), 0.0))
+
+
 class DiscreteRandomVariable(_Distribution):
     def __init__(self, counts):  # type: (List[float]) -> None
-        total = sum(counts, 0.0)
-        if total == 0:
+        total = logsumexp(counts)
+        if total == float('-inf'):
             raise InvalidDistributionError()
         super(DiscreteRandomVariable, self).__init__(
-            count / total for count in counts)
+            math.exp(count - total) for count in counts)
         for i in range(1, len(self)):
             # Build the right endpoints to sample from.
             self[i] += self[i - 1]
@@ -51,7 +74,7 @@ class LeastFrequentRoundRobin(_Distribution):
     """
     def __init__(self, counts):  # type: (List[Union[float, int]]) -> None
         super(LeastFrequentRoundRobin, self).__init__(
-            i for i, count in enumerate(counts) if counts[i] > 0)
+            i for i, count in enumerate(counts) if counts[i] > nplog(0))
         self.sort(key=counts.__getitem__)  # Sort indices from least to most frequent.
         self.chooser = itertools.cycle(self)
 
@@ -77,7 +100,7 @@ class PathCounts(list):
         # state to an accepting state. (i.e. 1 if the state is accepting.)
         self.states = range(len(self.dfa.node))
         super(PathCounts, self).__init__(
-            [1.0 if self.dfa.node[state]['accepting'] else 0.0]
+            [nplog(1.0) if self.dfa.node[state]['accepting'] else nplog(0.0)]
             for state in self.states
         )
         self.longest_path_length = 0
@@ -92,9 +115,9 @@ class PathCounts(list):
                     # Compute the next length of paths by summing the number of
                     # paths of length self.longest_path_length among the out-edges
                     # of the node.
-                    path_counts = sum(
+                    path_counts = logsumexp([
                         self[self.dfa.delta[state][char]][self.longest_path_length]
-                        for char in self.dfa.alphabet)
+                        for char in self.dfa.alphabet])
                     self[state].append(path_counts)
                 self.longest_path_length += 1
             return self[node][path_length]
@@ -147,7 +170,7 @@ class BaseGenerator(object):
         chars = []
         if length == 0 and not self.dfa.node[state]['accepting']:
             return None
-        elif self.path_counts[state, length] == 0:
+        elif self.path_counts[state, length] == nplog(0):
             return None  # No paths of the given length.
         for i in range(length):
             dist = self.get_dist_for_node_and_length(state, length - i)
@@ -169,7 +192,7 @@ class BaseGenerator(object):
             iterator = count()
 
         for length in iterator:
-            if self.path_counts[self.dfa.start, length] > 0:
+            if self.path_counts[self.dfa.start, length] > nplog(0):
                 yield length
 
 
