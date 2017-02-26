@@ -25,7 +25,7 @@ Installation
 Usage Examples
 --------------
 
-Consider the language of strings on the alphabet `abc`, which begin with b and have length congruent to 10 mod 15. This can be represented as follows:
+Consider the language of strings on the alphabet ``abc``, which begin with b and have length congruent to 10 mod 15. This can be represented as follows:
 
     .. code-block:: python
 
@@ -58,7 +58,7 @@ We can also introspect aspects of the language, and generate examples which matc
         >>> list(DeterministicRegularLanguageGenerator((r & compile('b(a{0,50})')).as_dfa('abc')).matching_strings_iter())
         ['baaaaaaaaa', 'baaaaaaaaaaaaaaaaaaaaaaaa', 'baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']
 
-`RandomRegularLanguageGenerator.generate_string(n)` will choose a string of length n *uniformly at random* among strings of length `n` matched by the regular expression. For example, consider the following regular expression, which matches comma-separated lists of numbers 01-20:
+``RandomRegularLanguageGenerator.generate_string(n)`` will choose a string of length ``n`` *uniformly at random* among strings of length ``n`` matched by the regular expression. For example, consider the following regular expression, which matches comma-separated lists of numbers 01-20:
 
     .. code-block:: python
 
