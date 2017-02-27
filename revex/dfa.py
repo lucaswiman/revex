@@ -203,6 +203,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             attr_dict={
                 'label': str(state),
                 'accepting': accepting,
+                'shape': 'doublecircle' if accepting else 'box',
             },
             color='green' if accepting else 'black',
         )
@@ -221,7 +222,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             from_state, to_state,
             attr_dict={
                 'transition': char,
-                'label': char,
+                'label': ' %s ' % char,
             }
         )
 
@@ -238,9 +239,13 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         """
         import os
         if full:
-            graph = self
+            graph = self.as_multidigraph
         else:
             graph = self.live_subgraph
+
+        invisible_start_node = object()
+        graph.add_node(invisible_start_node, attr_dict={'label': ''}, color='white')
+        graph.add_edge(invisible_start_node, self.start, attr_dict={'label': ' start'})
 
         nx.drawing.nx_agraph.write_dot(graph, '/tmp/foo_%s.dot' % id(graph))
         os.system(
