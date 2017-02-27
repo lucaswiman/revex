@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, unicode_literals
 
 import re
 from collections import Counter
@@ -7,6 +7,7 @@ from sys import float_info
 import math
 
 import pytest
+import six
 
 import revex
 from revex.derivative import EMPTY, RegularExpression
@@ -22,7 +23,7 @@ def rgen(regex, alphabet=None):
 
 
 def dgen(regex, alphabet=None):
-    alphabet = alphabet or list(set(str(regex)))
+    alphabet = alphabet or list(set(six.text_type(regex)))
     if not isinstance(regex, RegularExpression):
         regex = revex.compile(regex)
     return DeterministicRegularLanguageGenerator(regex.as_dfa(alphabet))
