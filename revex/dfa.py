@@ -76,10 +76,9 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
 
     @property
     def is_empty(self):   # type: () -> bool
-        return len(self._acceptable_subgraph.node) == 0
+        return len(self.acceptable_subgraph().node) == 0
 
-    @property
-    def _acceptable_subgraph(self):  # type:  () -> nx.MultiDiGraph
+    def acceptable_subgraph(self, include_sink=False):  # type:  () -> nx.MultiDiGraph
         graph = self.as_multidigraph
         reachable_states = nx.descendants(graph, self.start) | {self.start}
         graph = graph.subgraph(reachable_states)
@@ -87,15 +86,15 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             node for node in graph.node if graph.node[node]['accepting']
         }
 
-        # Add a "sink" node with an in-edge from every accepting state. This is
-        # is solely done because the networkx API makes it easier to find the
-        # ancestor of a node than a set of nodes.
+        # Add a "sink" node with an in-edge from every accepting state.
         sink = object()
         graph.add_node(sink)
         for state in reachable_accepting_states:
             graph.add_edge(state, sink)
 
         acceptable_sates = nx.ancestors(graph, sink)
+        if include_sink:
+            acceptable_sates |= {sink}
         return graph.subgraph(acceptable_sates)
 
     @property
@@ -107,10 +106,10 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         http://math.uaa.alaska.edu/~afkjm/cs351/handouts/non-regular.pdf
 
         - Remove nodes which cannot reach an accepting state (see
-          `_acceptable_subgraph` above).
+          `acceptable_subgraph` above).
         - Language is finite iff the remaining graph is acyclic.
         """
-        return nx.is_directed_acyclic_graph(self._acceptable_subgraph)
+        return nx.is_directed_acyclic_graph(self.acceptable_subgraph())
 
     @property
     def longest_string(self):  # type: () -> String
@@ -130,7 +129,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         # an accepting state. These two properties imply that there is at least
         # one walk between these two states, corresponding to a string present in
         # the language.
-        acceptable_subgraph = self._acceptable_subgraph
+        acceptable_subgraph = self.acceptable_subgraph()
         if len(acceptable_subgraph.node) == 0:
             # If this graph is _empty_, then the language is empty.
             raise EmptyLanguageError()
