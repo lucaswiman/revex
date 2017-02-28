@@ -6,6 +6,8 @@ import random
 from bisect import bisect_left
 from itertools import count
 
+import networkx as nx
+import numpy as np
 from six.moves import range
 from typing import Tuple, Dict, List, Union  # noqa
 
@@ -85,6 +87,32 @@ class PathWeights(list):
         )
         self.longest_path_length = 0
 
+        self.graph = self.dfa.as_multidigraph
+        self.sink = len(self.dfa.nodes())
+
+        for state in self.dfa.nodes():
+            if self.dfa.node[state]['accepting']:
+                self.graph.add_edge(state, self.sink)
+
+        self.matrix = nx.to_numpy_matrix(
+            self.graph,
+            nodelist=self.graph.nodes(),
+        )
+        vect = np.zeros(self.matrix.shape[0])
+        vect[-1] = 1.0  # Grab the neighborhood of the sink node (last column).
+        vect = self.normalize_vector(self.matrix.dot(vect)).T
+        self.vects = [vect]
+
+    @staticmethod
+    def normalize_vector(vector):
+        import numpy as np
+        total = np.sum(vector)
+        assert not np.isnan(total)
+        if total == 0:
+            return vector
+        else:
+            return vector / total
+
     def __getitem__(self, item):
         if isinstance(item, tuple):
             node, path_length = item
@@ -105,7 +133,11 @@ class PathWeights(list):
                 for state in self.states:
                     if total > 0:
                         self[state][self.longest_path_length] /= total
-            return self[node][path_length]
+                self.vects.append(self.normalize_vector(self.matrix.dot(self.vects[-1])))
+            old_ret = self[node][path_length]
+            new_ret = self.vects[path_length].item(node)
+            assert abs(old_ret - new_ret) < 0.001
+            return new_ret
         return list.__getitem__(self, item)
 
     def __repr__(self):
