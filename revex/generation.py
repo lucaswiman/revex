@@ -6,6 +6,8 @@ import random
 from bisect import bisect_left
 from itertools import count
 
+import networkx as nx
+import numpy as np
 from six.moves import range
 from typing import Tuple, Dict, List, Union  # noqa
 
@@ -59,57 +61,47 @@ class LeastFrequentRoundRobin(_Distribution):
         return next(self.chooser)
 
 
-class PathWeights(list):
+class PathWeights(object):
 
     def __init__(self, dfa):  # type: (DFA) -> None
         """
         Class for maintaining state path weights inside a dfa.
 
         This is a renormalized version of l_{p,n} in section 2 of the Bernardi
-        & Giménez paper, path_weights[state][n] is the proportion of paths of
+        & Giménez paper, computed using matrix powers. See:
+        https://en.wikipedia.org/wiki/Adjacency_matrix#Matrix_powers
+
+        Note that ``path_weights[state, n]`` is the proportion of paths of
         length n from state to _some_ final/accepting state.
 
         `dfa` MUST have consecutive integer states, with 0 as the start state,
         though this is not validated.
         """
-        self.dfa = dfa
-        # Initialize the array with the number of zero-length paths from the
-        # state to an accepting state. (i.e. 1 if the state is accepting.)
-        self.states = range(len(self.dfa.node))
-        number_of_accepting_states = sum(
-            self.dfa.node[state]['accepting'] for state in self.states) or 1.0
-        super(PathWeights, self).__init__(
-            # Note that True == 1 and False == 0.
-            [self.dfa.node[state]['accepting'] / number_of_accepting_states]
-            for state in self.states
-        )
         self.longest_path_length = 0
 
-    def __getitem__(self, item):
-        if isinstance(item, tuple):
-            node, path_length = item
-            while path_length > self.longest_path_length:
-                # Precomputes all path lengths up to path_length by expanding
-                # breadth first search.
-                total = 0.0
-                for state in self.states:
-                    # Compute the next length of paths by summing the number of
-                    # paths of length self.longest_path_length among the out-edges
-                    # of the node.
-                    path_weight = sum(
-                        self[self.dfa.delta[state][char]][self.longest_path_length]
-                        for char in self.dfa.alphabet)
-                    total += path_weight
-                    self[state].append(path_weight)
-                self.longest_path_length += 1
-                for state in self.states:
-                    if total > 0:
-                        self[state][self.longest_path_length] /= total
-            return self[node][path_length]
-        return list.__getitem__(self, item)
+        self.graph = dfa.as_multidigraph
+        self.sink = len(dfa.nodes())
 
-    def __repr__(self):
-        return 'PathWeights(%r)' % self.dfa
+        for state in dfa.nodes():
+            if dfa.node[state]['accepting']:
+                self.graph.add_edge(state, self.sink)
+
+        self.matrix = nx.to_numpy_matrix(self.graph, nodelist=self.graph.nodes())
+        vect = np.zeros(self.matrix.shape[0])
+        vect[-1] = 1.0  # Grabs the neighborhood of the sink node (last column).
+        self.vects = [self.normalize_vector(self.matrix.dot(vect)).T]
+
+    @staticmethod
+    def normalize_vector(vector):
+        total = np.sum(vector)
+        return vector if total == 0 else vector / total
+
+    def __getitem__(self, item):
+        node, path_length = item
+        while path_length > self.longest_path_length:
+            self.longest_path_length += 1
+            self.vects.append(self.normalize_vector(self.matrix.dot(self.vects[-1])))
+        return self.vects[path_length].item(node)
 
 
 class BaseGenerator(object):
@@ -122,7 +114,7 @@ class BaseGenerator(object):
         self.nodes = range(0, len(self.dfa.node))
 
         # Denoted by l_{p,n} in section 2 of the Bernardi & Giménez paper,
-        # path_weights[state][n] is the proportion of paths of length n from
+        # path_weights[state, n] is the proportion of paths of length n from
         # state to _some_ final/accepting state. In that paper, the _counts_ are
         # stored as floating point numbers for efficiency, but this leads to
         # overflow when generating very long strings. In our implementation, the

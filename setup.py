@@ -8,6 +8,6 @@ setup(name='revex',
       author_email='lucas.wiman@gmail.com',
       license='Apache 2.0',
       packages=['revex'],
-      install_requires=['parsimonious', 'networkx', 'six'],
+      install_requires=['parsimonious', 'networkx', 'six', 'numpy'],
       long_description='foo',
       zip_safe=False)
