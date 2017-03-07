@@ -20,6 +20,8 @@ from typing import Sequence  # noqa
 from typing import Tuple  # noqa
 
 import six
+from six import unichr as chr
+
 from parsimonious import NodeVisitor, Grammar
 
 from revex.dfa import String, DFA  # noqa
@@ -872,9 +874,7 @@ class RegexVisitor(NodeVisitor):
 
     def visit_range(self, node, children):
         start, dash, end = children
-        return reduce(
-            operator.or_,
-            [CharSet([chr(i)]) for i in range(ord(start), ord(end) + 1)])
+        return CharSet([chr(i) for i in range(ord(start), ord(end) + 1)])
 
     def visit_set_items(self, node, children):
         items = [
