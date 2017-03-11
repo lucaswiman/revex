@@ -235,9 +235,10 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
     def _draw(self, full=False):  # pragma: no cover
         # type: () -> None
         """
-        Hack to draw the graph and open it in preview. Sorta OS X only-ish.
+        Hack to draw the graph and open it in preview or display in an ipython
+        notebook (if running).
         """
-        import os
+        import os, sys, tempfile, shutil
         if full:
             graph = self.as_multidigraph
         else:
@@ -247,10 +248,28 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         graph.add_node(invisible_start_node, attr_dict={'label': ''}, color='white')
         graph.add_edge(invisible_start_node, self.start, attr_dict={'label': ' start'})
 
-        nx.drawing.nx_agraph.write_dot(graph, '/tmp/foo_%s.dot' % id(graph))
-        os.system(
-            'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(graph)))
-        os.system('open /tmp/foo_{0}.png'.format(id(graph)))
+        if 'ipykernel' in sys.modules:
+            import IPython.display
+            directory = tempfile.mkdtemp()
+            dotpath = os.path.join(directory, 'out.dot')
+            pngpath = os.path.join(directory, 'out.png')
+            try:
+                nx.drawing.nx_agraph.write_dot(graph, dotpath)
+                os.system(
+                    'dot -Tpng {dotpath} -o {pngpath}'.format(**locals()))
+                with open(pngpath, 'rb') as f:
+                    IPython.display.display(IPython.display.Image(data=f.read()))
+            finally:
+                shutil.rmtree(directory)
+        elif sys.platform == 'darwin':
+            nx.drawing.nx_agraph.write_dot(graph, '/tmp/foo_%s.dot' % id(graph))
+            os.system(
+                'dot -Tpng /tmp/foo_{0}.dot -o /tmp/foo_{0}.png'.format(id(graph)))
+            os.system('open /tmp/foo_{0}.png'.format(id(graph)))
+        else:
+            raise NotImplementedError(
+                'See https://github.com/lucaswiman/revex/issues/19. '
+                'Patches welcome!')
 
     def find_invalid_nodes(self):  # type: () -> Sequence[NodeType]
         """
