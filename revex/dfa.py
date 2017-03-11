@@ -257,7 +257,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
                 nx.drawing.nx_agraph.write_dot(graph, dotpath)
                 os.system(
                     'dot -Tpng {dotpath} -o {pngpath}'.format(**locals()))
-                with open(pngpath, 'rb') as f:
+                with open(pngpath, 'rb') as f:  # type: ignore
                     IPython.display.display(IPython.display.Image(data=f.read()))
             finally:
                 shutil.rmtree(directory)
