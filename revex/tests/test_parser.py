@@ -3,6 +3,10 @@ from __future__ import unicode_literals
 
 import re
 
+import hypothesis
+import pytest
+from hypothesis import strategies as st
+
 from revex import compile
 from revex.derivative import REGEX, EPSILON
 
@@ -282,3 +286,12 @@ def test_url_validation_example():
     regex = r'(?:(?:https?|ftp)://)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:/[^\s]*)?'  # noqa
     assert REGEX.parse(regex)
     assert RE(regex).match('http://foo.com/bar')
+
+
+@pytest.mark.xfail(reason='TODO: bug in parser.')
+@hypothesis.given(st.text(min_size=1, max_size=1))
+def test_hard_character_range_example(char):
+    # Via https://twitter.com/mountain_ghosts/status/847130837644709888
+    regex = r'[ -\/:-@\[-`\{-~]'
+    assert REGEX.parse(regex)
+    RE(regex).match(char)  # Asserts the same as builtin re.compile.
