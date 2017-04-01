@@ -22,7 +22,7 @@ from typing import Tuple  # noqa
 import six
 from six import unichr as chr
 
-from parsimonious import NodeVisitor, Grammar
+from parsimonious import NodeVisitor
 
 from revex.dfa import String, DFA  # noqa
 from revex.regex_grammar import REGEX

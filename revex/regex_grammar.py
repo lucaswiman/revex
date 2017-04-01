@@ -1,11 +1,18 @@
 from __future__ import unicode_literals
 
-import re, string
+import sys
 
 from parsimonious import Grammar
 
-def is_char_escapable_in_ranges(char):  # type: (str) -> bool
-    return not re.compile(r'[\{char}]'.format(char=char)).match('\\')
+
+# The collection of "escapable" characters differs between Python 2 and
+# Python 3, but is just set to the appropriate constant here for efficiency.
+# See revex.tests.test_parser.test_escapable_chars, where it is verified that
+# the list is correct.
+if sys.version_info < (3, ):
+    ESCAPABLE_CHARS = '0abcdefghijklmnopqrstuvwyzCEFGHIJKLMNOPQRTUVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
+else:
+    ESCAPABLE_CHARS = '0abcdefghijklmnopqrstvwyzCEFGHIJKLMNOPQRTVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
 
 
 REGEX = Grammar(r'''
@@ -43,8 +50,8 @@ REGEX = Grammar(r'''
     charclass = "\\" ~"[dDwWsS]"
     character = ~"[^$^\\*+()|?]"
     character_set = "[" "^"? set_items "]"
-    set_char = escaped_numeric_character / ~"[^\\]]"
-    escaped_set_char = ~"\\\\[[\\]-]"
+    set_char = escaped_numeric_character / escaped_set_char / ~"[^\\]]"
+    escaped_set_char = "\\" ~"[%s]"
     set_items = (range / escaped_set_char / escaped_character / ~"[^\\]]" )+
     range = set_char  "-" set_char
-''')  # noqa
+''' % ESCAPABLE_CHARS)  # noqa

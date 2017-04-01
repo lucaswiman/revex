@@ -2,13 +2,14 @@
 from __future__ import unicode_literals
 
 import re
+import string
 
 import hypothesis
-import pytest
 from hypothesis import strategies as st
 
 from revex import compile
 from revex.derivative import REGEX, EPSILON
+from revex.regex_grammar import ESCAPABLE_CHARS
 
 
 class RE(object):
@@ -288,10 +289,29 @@ def test_url_validation_example():
     assert RE(regex).match('http://foo.com/bar')
 
 
-@pytest.mark.xfail(reason='TODO: bug in parser.')
+@hypothesis.given(st.text(min_size=1, max_size=1))
+def test_escaped_char_range_endpoint(char):
+    RE(r'[ -\/]').match(char)  # Asserts the same as builtin re.compile.
+
+
 @hypothesis.given(st.text(min_size=1, max_size=1))
 def test_hard_character_range_example(char):
     # Via https://twitter.com/mountain_ghosts/status/847130837644709888
     regex = r'[ -\/:-@\[-`\{-~]'
     assert REGEX.parse(regex)
     RE(regex).match(char)  # Asserts the same as builtin re.compile.
+
+
+def test_escapable_chars():
+    """
+    Tests that the list of escapable characters is correct for the current version
+    of python.  This list differs between Python 2 and Python 3.
+    """
+
+    def is_char_escapable(char):
+        try:
+            return not re.compile(r'\{char}'.format(char=char)).match('\\')
+        except Exception as e:
+            return False
+
+    assert ESCAPABLE_CHARS == re.escape(''.join(filter(is_char_escapable, string.printable)))
