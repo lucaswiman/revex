@@ -9,7 +9,7 @@ from hypothesis import strategies as st
 
 from revex import compile
 from revex.derivative import REGEX, EPSILON
-from revex.regex_grammar import ESCAPABLE_CHARS
+from revex.regex_grammar import ESCAPABLE_CHARS, CHARSET_ESCAPABLE_CHARS
 
 
 class RE(object):
@@ -289,9 +289,29 @@ def test_url_validation_example():
     assert RE(regex).match('http://foo.com/bar')
 
 
-@hypothesis.given(st.text(min_size=1, max_size=1))
-def test_escaped_char_range_endpoint(char):
-    RE(r'[ -\/]').match(char)  # Asserts the same as builtin re.compile.
+@hypothesis.given(
+    st.text(min_size=1, max_size=1),
+    st.sampled_from(ESCAPABLE_CHARS),
+)
+def test_escaped_char(char, escapee):
+    RE(r'\{escapee}'.format(escapee=escapee)).match(char)  # Asserts the same as builtin re.compile.
+    RE(r'\{escapee}'.format(escapee=escapee)).match('\\' + char)
+
+
+@hypothesis.given(
+    st.text(min_size=1, max_size=1),
+    st.sampled_from(CHARSET_ESCAPABLE_CHARS),
+)
+def test_escaped_char_range_endpoint(char, escapee):
+    RE(r'[\{escapee}-\{escapee}]'.format(escapee=escapee)).match(char)
+
+
+@hypothesis.given(
+    st.text(min_size=1, max_size=1),
+    st.sampled_from(CHARSET_ESCAPABLE_CHARS),
+)
+def test_escaped_char_set(char, escapee):
+    RE(r'[\{escapee}]'.format(escapee=escapee)).match(char)
 
 
 @hypothesis.given(st.text(min_size=1, max_size=1))
@@ -310,8 +330,15 @@ def test_escapable_chars():
 
     def is_char_escapable(char):
         try:
-            return not re.compile(r'\{char}'.format(char=char)).match('\\')
+            return not re.compile(r'\{char}'.format(char=char)).match('\\%s' % char)
+        except Exception as e:
+            return False
+
+    def is_char_escapable_in_charsets(char):
+        try:
+            return not re.compile(r'[\{char}]'.format(char=char)).match('\\')
         except Exception as e:
             return False
 
     assert ESCAPABLE_CHARS == re.escape(''.join(filter(is_char_escapable, string.printable)))
+    assert CHARSET_ESCAPABLE_CHARS == re.escape(''.join(filter(is_char_escapable_in_charsets, string.printable)))

@@ -11,8 +11,10 @@ from parsimonious import Grammar
 # the list is correct.
 if sys.version_info < (3, ):
     ESCAPABLE_CHARS = '0abcdefghijklmnopqrstuvwyzCEFGHIJKLMNOPQRTUVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
+    CHARSET_ESCAPABLE_CHARS = '0abcdefghijklmnopqrstuvwyzCEFGHIJKLMNOPQRTUVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
 else:
     ESCAPABLE_CHARS = '0abcdefghijklmnopqrstvwyzCEFGHIJKLMNOPQRTVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
+    CHARSET_ESCAPABLE_CHARS = '0abcdefghijklmnopqrstvwyzCEFGHIJKLMNOPQRTVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
 
 
 REGEX = Grammar(r'''
@@ -54,4 +56,4 @@ REGEX = Grammar(r'''
     escaped_set_char = "\\" ~"[%s]"
     set_items = (range / escaped_set_char / escaped_character / ~"[^\\]]" )+
     range = set_char  "-" set_char
-''' % ESCAPABLE_CHARS)  # noqa
+''' % CHARSET_ESCAPABLE_CHARS)  # noqa
