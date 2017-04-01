@@ -330,15 +330,17 @@ def test_escapable_chars():
 
     def is_char_escapable(char):
         try:
-            return not re.compile(r'\{char}'.format(char=char)).match('\\%s' % char)
-        except Exception as e:
+            regex = re.compile(r'^\{char}$'.format(char=char))
+        except Exception:
             return False
+        return {c for c in string.printable if regex.match(c)} == {char}
 
     def is_char_escapable_in_charsets(char):
         try:
-            return not re.compile(r'[\{char}]'.format(char=char)).match('\\')
-        except Exception as e:
+            regex = re.compile(r'^[\{char}]$'.format(char=char))
+        except Exception:
             return False
+        return {c for c in string.printable if regex.match(c)} == {char}
 
     assert ESCAPABLE_CHARS == re.escape(''.join(filter(is_char_escapable, string.printable)))
     assert CHARSET_ESCAPABLE_CHARS == re.escape(''.join(filter(is_char_escapable_in_charsets, string.printable)))

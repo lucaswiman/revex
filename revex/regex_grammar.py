@@ -10,11 +10,11 @@ from parsimonious import Grammar
 # See revex.tests.test_parser.test_escapable_chars, where it is verified that
 # the list is correct.
 if sys.version_info < (3, ):
-    ESCAPABLE_CHARS = '0abcdefghijklmnopqrstuvwyzCEFGHIJKLMNOPQRTUVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
-    CHARSET_ESCAPABLE_CHARS = '0abcdefghijklmnopqrstuvwyzCEFGHIJKLMNOPQRTUVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
+    ESCAPABLE_CHARS = 'ceghijklmopquyzCEFGHIJKLMNOPQRTUVXY\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\\\\\]\\^\\_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
+    CHARSET_ESCAPABLE_CHARS = 'ceghijklmopquyzABCEFGHIJKLMNOPQRTUVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\\\\\]\\^\\_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
 else:
-    ESCAPABLE_CHARS = '0abcdefghijklmnopqrstvwyzCEFGHIJKLMNOPQRTVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
-    CHARSET_ESCAPABLE_CHARS = '0abcdefghijklmnopqrstvwyzCEFGHIJKLMNOPQRTVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
+    ESCAPABLE_CHARS = 'ceghijklmopqyzCEFGHIJKLMNOPQRTVXY\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\\\\\]\\^_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
+    CHARSET_ESCAPABLE_CHARS = 'ceghijklmopqyzABCEFGHIJKLMNOPQRTVXYZ\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\\\\\]\\^_\\`\\{\\|\\}\\~\\ \\\t\\\n\\\r\\\x0b\\\x0c'  # noqa
 
 
 REGEX = Grammar(r'''
