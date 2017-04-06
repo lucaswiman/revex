@@ -342,5 +342,6 @@ def test_escapable_chars():
             return False
         return {c for c in string.printable if regex.match(c)} == {char}
 
-    assert ESCAPABLE_CHARS == re.escape(''.join(filter(is_char_escapable, string.printable)))
-    assert CHARSET_ESCAPABLE_CHARS == re.escape(''.join(filter(is_char_escapable_in_charsets, string.printable)))
+    assert ESCAPABLE_CHARS == ''.join(filter(is_char_escapable, string.printable))
+    assert CHARSET_ESCAPABLE_CHARS == ''.join(filter(is_char_escapable_in_charsets,
+                                                     string.printable))
