@@ -11,7 +11,7 @@ def double_regex_escape(char):
     # regex inside a parsimonious grammar, so we escape odd characters to
     # their hex representation rather than just using "\\".
     if re.escape(char) != char:
-        return '\\x%0.2X' % ord(char)
+        return '\\\\x%0.2X' % ord(char)
     else:
         return char
 
