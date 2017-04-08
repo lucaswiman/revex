@@ -49,10 +49,10 @@ REGEX = Grammar(r'''
     comment = "(?#" ("\)" / ~"[^)]")* ")"
 
     escaped_character =
+        escaped_whitespace /
         escaped_metachar /
-        escaped_numeric_character /
-        escaped_whitespace
-    escaped_metachar = "\\" ~"[.$^\\\\*+()|{}?\\][/]"
+        escaped_numeric_character
+    escaped_metachar = "\\" ~"[%s]"
     escaped_numeric_character =
         ("\\"  ~"[0-7]{3}") /
         ("\\x" ~"[0-9a-f]{2}"i) /
@@ -67,4 +67,8 @@ REGEX = Grammar(r'''
     escaped_set_char = "\\" ~"[%s]"
     set_items = (range / escaped_numeric_character / escaped_whitespace / escaped_set_char / ~"[^\\]]" )+
     range = set_char  "-" set_char
-''' % ''.join(map(double_regex_escape, CHARSET_ESCAPABLE_CHARS)))  # noqa
+''' % (  # noqa
+        ''.join(map(double_regex_escape, ESCAPABLE_CHARS)),
+        ''.join(map(double_regex_escape, CHARSET_ESCAPABLE_CHARS)),
+    )
+)
