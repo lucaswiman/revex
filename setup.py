@@ -2,7 +2,7 @@ from setuptools import setup
 import sys
 
 install_requires = ['parsimonious', 'networkx', 'six', 'numpy']
-if sys.version < (3, 5):
+if sys.version_info < (3, 5):
     install_requires.append('typing')
 
 setup(name='revex',
