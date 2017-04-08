@@ -22,9 +22,10 @@ from typing import Tuple  # noqa
 import six
 from six import unichr as chr
 
-from parsimonious import NodeVisitor, Grammar
+from parsimonious import NodeVisitor
 
 from revex.dfa import String, DFA  # noqa
+from revex.regex_grammar import REGEX
 from .dfa import DEFAULT_ALPHABET
 
 
@@ -719,48 +720,6 @@ class LookBehind(RegularExpression):
     @property
     def identity_tuple(self):
         return (type(self).__name__, self.prefix, self.lookaround_re)
-
-
-REGEX = Grammar(r'''
-    re = union / concatenation
-    lookahead = "(" ("?=" / "?!" / "?<=" / "?<!") re ")"
-    union = (concatenation "|")+ concatenation
-    concatenation = (lookahead / quantified / repeat_fixed / repeat_range / literal)*
-    quantified = literal ~"[*+?]"
-    repeat_fixed = literal "{" ~"\d+" "}"
-    repeat_range = literal "{" ~"(\d+)?" "," ~"(\d+)?" "}"
-
-    literal =
-        comment /
-        group /
-        character_set /
-        escaped_character /
-        charclass /
-        character
-
-    group = ("(?:" / "(") !("?=" / "?!" / "?<=" / "?<!") re ")"
-    comment = "(?#" ("\)" / ~"[^)]")* ")"
-
-    escaped_character =
-        escaped_metachar /
-        escaped_numeric_character /
-        escaped_whitespace
-    escaped_metachar = "\\" ~"[.$^\\\\*+()|{}?\\][]"
-    escaped_numeric_character =
-        ("\\"  ~"[0-7]{3}") /
-        ("\\x" ~"[0-9a-f]{2}"i) /
-        ("\\u" ~"[0-9a-f]{4}"i) /
-        ("\\U" ~"[0-9a-f]{8}"i)
-    escaped_whitespace = "\\" ~"[ntvr]"
-
-    charclass = "\\" ~"[dDwWsS]"
-    character = ~"[^$^\\*+()|?]"
-    character_set = "[" "^"? set_items "]"
-    set_char = escaped_numeric_character / ~"[^\\]]"
-    escaped_set_char = ~"\\\\[[\\]-]"
-    set_items = (range / escaped_set_char / escaped_character / ~"[^\\]]" )+
-    range = set_char  "-" set_char
-''')  # noqa
 
 
 class RegexVisitor(NodeVisitor):

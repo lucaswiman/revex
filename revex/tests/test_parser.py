@@ -2,13 +2,14 @@
 from __future__ import unicode_literals
 
 import re
+import string
 
 import hypothesis
-import pytest
 from hypothesis import strategies as st
 
 from revex import compile
 from revex.derivative import REGEX, EPSILON
+from revex.regex_grammar import ESCAPABLE_CHARS, CHARSET_ESCAPABLE_CHARS
 
 
 class RE(object):
@@ -288,10 +289,59 @@ def test_url_validation_example():
     assert RE(regex).match('http://foo.com/bar')
 
 
-@pytest.mark.xfail(reason='TODO: bug in parser.')
+@hypothesis.given(
+    st.text(min_size=1, max_size=1),
+    st.sampled_from(ESCAPABLE_CHARS),
+)
+def test_escaped_char(char, escapee):
+    RE(r'\{escapee}'.format(escapee=escapee)).match(char)  # Asserts the same as builtin re.compile.
+    RE(r'\{escapee}'.format(escapee=escapee)).match('\\' + char)
+
+
+@hypothesis.given(
+    st.text(min_size=1, max_size=1),
+    st.sampled_from(CHARSET_ESCAPABLE_CHARS),
+)
+def test_escaped_char_range_endpoint(char, escapee):
+    RE(r'[\{escapee}-\{escapee}]'.format(escapee=escapee)).match(char)
+
+
+@hypothesis.given(
+    st.text(min_size=1, max_size=1),
+    st.sampled_from(CHARSET_ESCAPABLE_CHARS),
+)
+def test_escaped_char_set(char, escapee):
+    RE(r'[\{escapee}]'.format(escapee=escapee)).match(char)
+
+
 @hypothesis.given(st.text(min_size=1, max_size=1))
 def test_hard_character_range_example(char):
     # Via https://twitter.com/mountain_ghosts/status/847130837644709888
     regex = r'[ -\/:-@\[-`\{-~]'
     assert REGEX.parse(regex)
     RE(regex).match(char)  # Asserts the same as builtin re.compile.
+
+
+def test_escapable_chars():
+    """
+    Tests that the list of escapable characters is correct for the current version
+    of python.  This list differs between Python 2 and Python 3.
+    """
+
+    def is_char_escapable(char):
+        try:
+            regex = re.compile(r'^\{char}$'.format(char=char))
+        except Exception:
+            return False
+        return {c for c in string.printable if regex.match(c)} == {char}
+
+    def is_char_escapable_in_charsets(char):
+        try:
+            regex = re.compile(r'^[\{char}]$'.format(char=char))
+        except Exception:
+            return False
+        return {c for c in string.printable if regex.match(c)} == {char}
+
+    assert ESCAPABLE_CHARS == ''.join(filter(is_char_escapable, string.printable))
+    assert CHARSET_ESCAPABLE_CHARS == ''.join(filter(is_char_escapable_in_charsets,
+                                                     string.printable))
