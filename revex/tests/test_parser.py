@@ -14,7 +14,7 @@ from revex.regex_grammar import ESCAPABLE_CHARS, CHARSET_ESCAPABLE_CHARS
 
 class RE(object):
     def __init__(self, pattern):
-        self.base_re = re.compile(r'^(%s)$' % pattern)
+        self.base_re = re.compile(r'\A(%s)\Z' % pattern)
         self.re = compile(pattern)
 
     def match(self, string):
