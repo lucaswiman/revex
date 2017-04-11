@@ -293,6 +293,8 @@ def test_url_validation_example():
     st.text(min_size=1, max_size=1),
     st.sampled_from(ESCAPABLE_CHARS),
 )
+@hypothesis.settings()
+@hypothesis.example('\n', '\\')
 def test_escaped_char(char, escapee):
     RE(r'\{escapee}'.format(escapee=escapee)).match(char)  # Asserts the same as builtin re.compile.
     RE(r'\{escapee}'.format(escapee=escapee)).match('\\' + char)
