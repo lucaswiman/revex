@@ -322,28 +322,3 @@ def test_hard_character_range_example(char):
     regex = r'[ -\/:-@\[-`\{-~]'
     assert REGEX.parse(regex)
     RE(regex).match(char)  # Asserts the same as builtin re.compile.
-
-
-def test_escapable_chars():
-    """
-    Tests that the list of escapable characters is correct for the current version
-    of python.  This list differs between Python 2 and Python 3.
-    """
-
-    def is_char_escapable(char):
-        try:
-            regex = re.compile(r'^\{char}$'.format(char=char))
-        except Exception:
-            return False
-        return {c for c in string.printable if regex.match(c)} == {char}
-
-    def is_char_escapable_in_charsets(char):
-        try:
-            regex = re.compile(r'^[\{char}]$'.format(char=char))
-        except Exception:
-            return False
-        return {c for c in string.printable if regex.match(c)} == {char}
-
-    assert ESCAPABLE_CHARS == ''.join(filter(is_char_escapable, string.printable))
-    assert CHARSET_ESCAPABLE_CHARS == ''.join(filter(is_char_escapable_in_charsets,
-                                                     string.printable))

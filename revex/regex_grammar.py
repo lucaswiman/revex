@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 import re
-import sys
+import string
 
 from parsimonious import Grammar
 
@@ -16,16 +16,29 @@ def double_regex_escape(char):
         return char
 
 
-# The collection of "escapable" characters differs between Python 2 and
-# Python 3, but is just set to the appropriate constant here for efficiency.
-# See revex.tests.test_parser.test_escapable_chars, where it is verified that
-# the list is correct.
-if sys.version_info < (3, ):
-    ESCAPABLE_CHARS = u'ceghijklmopquyzCEFGHIJKLMNOPQRTUVXY!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c'  # noqa
-    CHARSET_ESCAPABLE_CHARS = 'ceghijklmopquyzABCEFGHIJKLMNOPQRTUVXYZ!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c'  # noqa
-else:
-    ESCAPABLE_CHARS = 'ceghijklmopqyzCEFGHIJKLMNOPQRTVXY!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c'  # noqa
-    CHARSET_ESCAPABLE_CHARS = 'ceghijklmopqyzABCEFGHIJKLMNOPQRTVXYZ!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c'  # noqa
+# Note: the collection of "escapable" characters differs between different
+# versions of python.
+
+
+def is_char_escapable(char):
+    try:
+        regex = re.compile(r'^\{char}$'.format(char=char))
+    except Exception:
+        return False
+    return {c for c in string.printable if regex.match(c)} == {char}
+
+
+def is_char_escapable_in_charsets(char):
+    try:
+        regex = re.compile(r'^[\{char}]$'.format(char=char))
+    except Exception:
+        return False
+    return {c for c in string.printable if regex.match(c)} == {char}
+
+
+ESCAPABLE_CHARS = ''.join(filter(is_char_escapable, string.printable))
+CHARSET_ESCAPABLE_CHARS = ''.join(filter(is_char_escapable_in_charsets,
+                                         string.printable))
 
 
 REGEX = Grammar(r'''
