@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 import re
-import string
 
 import hypothesis
 from hypothesis import strategies as st
@@ -313,6 +312,14 @@ def test_escaped_char_range_endpoint(char, escapee):
     st.sampled_from(CHARSET_ESCAPABLE_CHARS),
 )
 def test_escaped_char_set(char, escapee):
+    RE(r'[\{escapee}]'.format(escapee=escapee)).match(char)
+
+
+@hypothesis.given(
+    st.text(min_size=1, max_size=1),
+    st.sampled_from('wWdDsSnrt'),
+)
+def test_special_charset_chars(char, escapee):
     RE(r'[\{escapee}]'.format(escapee=escapee)).match(char)
 
 
