@@ -120,7 +120,9 @@ class RegularExpression(object):
         return (type(self).__name__, )
 
     def __hash__(self):
-        return hash(self.identity_tuple)
+        if not hasattr(self, '_hash'):
+            self._hash = hash(self.identity_tuple)
+        return self._hash
 
     def __eq__(self, other):
         return type(self) == type(other) and self.identity_tuple == other.identity_tuple
