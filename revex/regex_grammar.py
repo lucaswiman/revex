@@ -78,7 +78,7 @@ REGEX = Grammar(r'''
     character_set = "[" "^"? set_items "]"
     set_char = escaped_numeric_character / escaped_set_char / ~"[^\\]]"
     escaped_set_char = "\\" ~"[%s]"
-    set_items = (range / escaped_numeric_character / escaped_whitespace / escaped_set_char / ~"[^\\]]" )+
+    set_items = (range / charclass / escaped_numeric_character / escaped_whitespace / escaped_set_char / ~"[^\\]]" )+
     range = set_char  "-" set_char
 ''' % (  # noqa
         ''.join(map(double_regex_escape, ESCAPABLE_CHARS)),

@@ -2,8 +2,10 @@
 from __future__ import unicode_literals
 
 import re
+import string
 
 import hypothesis
+import pytest
 from hypothesis import strategies as st
 
 from revex import compile
@@ -316,11 +318,19 @@ def test_escaped_char_set(char, escapee):
 
 
 @hypothesis.given(
-    st.text(min_size=1, max_size=1),
+    st.sampled_from(string.printable),
     st.sampled_from('wWdDsSnrt'),
 )
 def test_special_charset_chars(char, escapee):
     RE(r'[\{escapee}]'.format(escapee=escapee)).match(char)
+
+
+@pytest.mark.xfail(
+    reason='TODO: correctly handle charclasses outside of ASCII range',
+    raises=AssertionError,
+)
+def test_special_charset_chars_unicode():
+    assert RE(r'[\w]').match('ª')
 
 
 @hypothesis.given(st.text(min_size=1, max_size=1))
