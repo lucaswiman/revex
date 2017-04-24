@@ -233,7 +233,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         return self.node[node]['accepting']
 
     def _draw(self, full=False):  # pragma: no cover
-        # type: () -> None
+        # type: (bool) -> None
         """
         Hack to draw the graph and open it in preview or display in an ipython
         notebook (if running).

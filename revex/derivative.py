@@ -317,8 +317,7 @@ class Intersection(RegularExpression):
         negated_charsets = {c for c in children if isinstance(c, CharSet) and c.negated}
         children  = (children - charsets) - negated_charsets
         if charsets:
-            charset = CharSet(reduce(operator.and_, (set(c.chars) for c in charsets)))
-            # type: Optional[CharSet]
+            charset = CharSet(reduce(operator.and_, (set(c.chars) for c in charsets)))  # type: Optional[CharSet]
         else:
             charset = None
         if negated_charsets:
