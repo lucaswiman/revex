@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Regex implementation using the Brzozowski derivative.
 
@@ -7,30 +6,19 @@ http://www.drmaciver.com/2016/12/proving-or-refuting-regular-expression-equivale
 
 See also https://en.wikipedia.org/wiki/Brzozowski_derivative
 """
-from __future__ import unicode_literals
 
 import operator
 import re
 import string
-from ast import literal_eval
 from functools import reduce, total_ordering
-from typing import Optional  # noqa
-from typing import Set  # noqa
-from typing import Sequence  # noqa
-from typing import Tuple  # noqa
+from typing import Optional, Set, Sequence, Tuple
 
-import six
-from six import unichr as chr
-
-from parsimonious import NodeVisitor
-
-from revex.dfa import String, DFA  # noqa
-from revex.regex_grammar import REGEX
+from revex.dfa import String, DFA
 from .dfa import DEFAULT_ALPHABET
 
 
 @total_ordering
-class RegularExpression(object):
+class RegularExpression:
     """
     A generalized regular expression, supporting:
         - ∅:               EMPTY
@@ -137,20 +125,19 @@ class RegularExpression(object):
 
 
 def parenthesize_str(regex):
-    return six.text_type(regex) if regex.is_atomic else '(%s)' % regex
+    return str(regex) if regex.is_atomic else '(%s)' % regex
 
 
 def parenthesize_repr(regex):
     return repr(regex) if regex.is_atomic else '(%r)' % regex
 
 
-@six.python_2_unicode_compatible
 class _Empty(RegularExpression):
     def __new__(cls):
         try:
             return EMPTY
         except NameError:
-            return super(_Empty, cls).__new__(cls)
+            return super().__new__(cls)
 
     accepting = False
 
@@ -167,13 +154,12 @@ class _Empty(RegularExpression):
 EMPTY = _Empty()
 
 
-@six.python_2_unicode_compatible
 class _Epsilon(RegularExpression):
     def __new__(cls):
         try:
             return EPSILON
         except NameError:
-            return super(_Epsilon, cls).__new__(cls)
+            return super().__new__(cls)
 
     accepting = True
 
@@ -190,7 +176,6 @@ class _Epsilon(RegularExpression):
 EPSILON = _Epsilon()
 
 
-@six.python_2_unicode_compatible
 class _Dot(RegularExpression):
     """
     Special expression for matching any character.
@@ -199,7 +184,7 @@ class _Dot(RegularExpression):
         try:
             return DOT
         except NameError:
-            return super(_Dot, cls).__new__(cls)
+            return super().__new__(cls)
 
     accepting = False
 
@@ -216,7 +201,6 @@ class _Dot(RegularExpression):
 DOT = _Dot()
 
 
-@six.python_2_unicode_compatible
 class Concatenation(RegularExpression):
     children = None  # type: Tuple[RegularExpression, ...]
 
@@ -240,7 +224,7 @@ class Concatenation(RegularExpression):
         elif len(children) == 1:
             return children[0]
         else:
-            instance = super(Concatenation, cls).__new__(cls)
+            instance = super().__new__(cls)
             instance.children = children
             return instance
 
@@ -293,7 +277,6 @@ class Concatenation(RegularExpression):
         return '+'.join(map(parenthesize_repr, self.children))
 
 
-@six.python_2_unicode_compatible
 class Intersection(RegularExpression):
     children = None  # type: Tuple[RegularExpression, ...]
 
@@ -315,7 +298,7 @@ class Intersection(RegularExpression):
         # Normalize all the charsets and negated charsets into (at most) two.
         charsets = {c for c in children if isinstance(c, CharSet) and not c.negated}
         negated_charsets = {c for c in children if isinstance(c, CharSet) and c.negated}
-        children  = (children - charsets) - negated_charsets
+        children = (children - charsets) - negated_charsets
         if charsets:
             charset = CharSet(reduce(operator.and_, (set(c.chars) for c in charsets)))  # type: Optional[CharSet]
         else:
@@ -355,7 +338,7 @@ class Intersection(RegularExpression):
         if len(children) == 1:
             return children.pop()
         else:
-            instance = super(Intersection, cls).__new__(cls)
+            instance = super().__new__(cls)
             instance.children = tuple(sorted(children))
             return instance
 
@@ -387,13 +370,12 @@ class Intersection(RegularExpression):
         return '&'.join(map(parenthesize_repr, self.children))
 
 
-@six.python_2_unicode_compatible
 class CharSet(RegularExpression):
     negated = None  # type: bool
     chars = None  # type: tuple
 
     def __new__(cls, chars, negated=False):
-        instance = super(CharSet, cls).__new__(cls)
+        instance = super().__new__(cls)
         instance.chars = tuple(sorted(chars))
         instance.negated = negated
         return instance
@@ -413,7 +395,7 @@ class CharSet(RegularExpression):
 
     def __str__(self):
         if len(self.chars) == 1 and not self.negated:
-            return six.text_type(self.chars[0])
+            return str(self.chars[0])
         return '[%s%s]' % ('^' if self.negated else '', ''.join(self.chars))
 
     def __repr__(self):
@@ -426,12 +408,11 @@ charclasses = {
 }
 
 
-@six.python_2_unicode_compatible
 class CharClass(CharSet):
     def __new__(cls, char):
         negated = char.isupper()
         chars = charclasses[char.lower()]
-        instance = super(CharClass, cls).__new__(cls, chars, negated)
+        instance = super().__new__(cls, chars, negated)
         instance.charclass = char
         return instance
 
@@ -441,14 +422,13 @@ class CharClass(CharSet):
 
     def __str__(self):
         if len(self.chars) == 1 and not self.negated:
-            return six.text_type(self.chars[0])
+            return str(self.chars[0])
         return '\\%s' % self.charclass
 
     def __repr__(self):
         return 'CharClass(%r)' % self.charclass
 
 
-@six.python_2_unicode_compatible
 class Union(RegularExpression):
     children = None  # type: Tuple[RegularExpression, ...]
 
@@ -475,7 +455,7 @@ class Union(RegularExpression):
         if len(children) == 1:
             return children[0]
 
-        instance = super(Union, cls).__new__(cls)
+        instance = super().__new__(cls)
         instance.children = children
         return instance
 
@@ -517,7 +497,6 @@ class Union(RegularExpression):
         return '|'.join(map(parenthesize_repr, self.children))
 
 
-@six.python_2_unicode_compatible
 class Complement(RegularExpression):
     regex = None  # type: RegularExpression
 
@@ -533,7 +512,7 @@ class Complement(RegularExpression):
         elif isinstance(regex, Complement):
             return regex.regex
         else:
-            instance = super(Complement, cls).__new__(cls)
+            instance = super().__new__(cls)
             instance.regex = regex
             return instance
 
@@ -567,14 +546,13 @@ class Complement(RegularExpression):
         return '~%s' % parenthesize_repr(self.regex)
 
 
-@six.python_2_unicode_compatible
 class Star(RegularExpression):
     regex = None  # type: RegularExpression
 
     def __new__(cls, regex):
         if regex is EMPTY or regex is EPSILON:
             return regex
-        instance = super(Star, cls).__new__(cls)
+        instance = super().__new__(cls)
         instance.regex = regex
         return instance
 
@@ -605,14 +583,13 @@ class Star(RegularExpression):
 WHATEVER = Star(DOT)
 
 
-@six.python_2_unicode_compatible
 class LookAhead(RegularExpression):
     accepting = None  # type: bool
     lookaround_re = None  # type: RegularExpression
     suffix = None  # type: RegularExpression
 
     def __new__(cls, lookaround_re, suffix):
-        instance = super(LookAhead, cls).__new__(cls)
+        instance = super().__new__(cls)
 
         accepting = lookaround_re.accepting and suffix.accepting
         if lookaround_re is EMPTY or suffix is EMPTY:
@@ -656,7 +633,6 @@ class LookAhead(RegularExpression):
         return 'LookAhead(%r, %r)' % (self.lookaround_re, self.suffix)
 
     def __str__(self):
-        # TODO: show negative lookahead as (?!...) instead of (?=~...)
         return '(?=%s)%s' % (self.lookaround_re, self.suffix)
 
     @property
@@ -667,14 +643,13 @@ class LookAhead(RegularExpression):
         return LookAhead(self.lookaround_re, self.suffix + other)
 
 
-@six.python_2_unicode_compatible
 class LookBehind(RegularExpression):
     accepting = None  # type: bool
     lookaround_re = None  # type: RegularExpression
     prefix = None  # type: RegularExpression
 
     def __new__(cls, prefix, lookaround_re):
-        instance = super(LookBehind, cls).__new__(cls)
+        instance = super().__new__(cls)
 
         accepting = prefix.accepting and lookaround_re.accepting
         if lookaround_re is EMPTY or prefix is EMPTY:
@@ -715,7 +690,6 @@ class LookBehind(RegularExpression):
         return 'LookBehind(%r, %r)' % (self.prefix, self.lookaround_re, )
 
     def __str__(self):
-        # TODO: show negative lookbehind as (<!...) instead of (<=~...)
         return '%s(?<=%s)' % (self.prefix, self.lookaround_re)
 
     @property
@@ -723,153 +697,11 @@ class LookBehind(RegularExpression):
         return (type(self).__name__, self.prefix, self.lookaround_re)
 
 
-class RegexVisitor(NodeVisitor):
-    grammar = REGEX
-
+class RegexVisitor:
+    """
+    Compatibility wrapper that provides the same parse() interface as the
+    old parsimonious-based NodeVisitor.
+    """
     def parse(self, regex):  # type: (String) -> RegularExpression
-        return super(RegexVisitor, self).parse(regex)
-
-    def visit_re(self, node, children):
-        [re] = children
-        return re
-
-    def visit_concatenation(self, node, children):
-        return reduce(operator.add, [re for [re] in children], EPSILON)
-
-    def visit_lookahead(self, node, children):
-        # lookahead = "(" "?=" re ")"
-        lparen, [quantifier], lookaround_re, rparen = children
-        if quantifier == "?!":
-            lookaround_re = ~(lookaround_re + WHATEVER)
-            return LookAhead(lookaround_re, EPSILON)
-        elif quantifier == '?=':
-            lookaround_re = lookaround_re + WHATEVER
-            return LookAhead(lookaround_re, EPSILON)
-        elif quantifier == "?<=":
-            lookaround_re = WHATEVER + lookaround_re
-            return LookBehind(EPSILON, lookaround_re)
-        elif quantifier == "?<!":
-            lookaround_re = ~(WHATEVER + lookaround_re)
-            return LookBehind(EPSILON, lookaround_re)
-        else:
-            raise NotImplementedError(quantifier)
-
-    def visit_comment(self, node, children):
-        # Just ignore the comment text and return a zero-character regex.
-        return EPSILON
-
-    def visit_group(self, node, children):
-        lparen, _, re, rparen = children
-        return re
-
-    def visit_charclass(self, node, children):
-        slash, charclass = children
-        return CharClass(charclass)
-
-    def visit_union(self, node, children):
-        disjuncts = []
-        # This is sort of ugly; parsimonious returns children as a list
-        # of all its left disjuncts (including the | character) and the final one
-        # (sans pipe character).
-        disjuncts_and_pipes, last_disjunct = children
-        for (disjunct, superfluous_pipe) in disjuncts_and_pipes:
-            disjuncts.append(disjunct)
-        disjuncts.append(last_disjunct)
-        return reduce(operator.or_, disjuncts)
-
-    def visit_quantified(self, node, children):
-        regex, quantifier = children
-        if quantifier == '?':
-            return regex | EPSILON
-        elif quantifier == '*':
-            return Star(regex)
-        elif quantifier == '+':
-            return regex + Star(regex)
-        else:
-            raise NotImplementedError('Unhandled quanitifier %s' % quantifier)
-
-    def visit_literal(self, node, children):
-        # Why doesn't parsimonious do this for you?
-        [child] = children
-        return child
-
-    def visit_escaped_character(self, node, children):
-        [char] = children
-        return CharSet([char])
-
-    def visit_escaped_metachar(self, node, children):
-        slash, char = children
-        return char
-
-    def visit_escaped_numeric_character(self, node, children):
-        [[escape, character_code]] = children
-        if escape == '\\':
-            # Octal escape code like '\077'
-            return chr(int(character_code, 8))
-        elif escape in ('\\u', '\\x', '\\U'):
-            # hex escape like '\xff'
-            return chr(int(character_code, 16))
-        else:
-            raise NotImplementedError('Unhandled character escape %s' % escape)
-
-    def visit_escaped_whitespace(self, node, children):
-        slash, char = children
-        return literal_eval('"\%s"' % char)  # type: ignore
-
-    def visit_escaped_set_char(self, node, children):
-        slash, char = node.text
-        return char
-
-    def visit_character(self, node, children):
-        char = node.text
-        assert len(char) == 1, 'bug %s' % char
-        if char == '.':
-            return DOT
-        else:
-            return CharSet(node.text)
-
-    def visit_set_char(self, node, children):
-        [char] = children
-        return char
-
-    def visit_range(self, node, children):
-        start, dash, end = children
-        return CharSet([chr(i) for i in range(ord(start), ord(end) + 1)])
-
-    def visit_set_items(self, node, children):
-        items = [
-            item if isinstance(item, RegularExpression) else CharSet([item])
-            for item, in children]
-        return reduce(operator.or_, items)
-
-    def visit_character_set(self, node, children):
-        [lbrac, negated, inner, rbrac] = children
-        if negated:
-            return CharSet(inner.chars, negated=True)
-        else:
-            return inner
-
-    def visit_repeat_fixed(self, node, children):
-        regex, lbrac, repeat_count, rbrac = children
-        repeat_count = int(repeat_count)
-        if repeat_count == 0:
-            raise ValueError('Invalid repeat %s' % node.text)
-        return regex * repeat_count
-
-    def visit_repeat_range(self, node, children):
-        regex, lbrac, min_repeat, comma, max_repeat, rbrac = children
-        min_repeat = int(min_repeat or '0')
-        max_repeat = None if not max_repeat else int(max_repeat)
-        repeated = regex * min_repeat
-        if max_repeat is None:
-            # Open ended range, like /a{4,}/
-            opt = Star(regex)
-        else:
-            opt = reduce(
-                operator.or_,
-                [regex * repeat for repeat in range(0, max_repeat - min_repeat + 1)])
-
-        return repeated + opt
-
-    def generic_visit(self, node, children):
-        return children or node.text
+        from revex.regex_grammar import parse_pattern
+        return parse_pattern(regex)

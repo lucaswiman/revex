@@ -1,22 +1,10 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import logging
 import re
+import typing
 from collections import defaultdict
-from typing import Any  # noqa
-from typing import Dict  # noqa
-from typing import List  # noqa
-from typing import Optional  # noqa
-from typing import Sequence  # noqa
-from typing import Set  # noqa
-from typing import Union  # noqa
-from typing import Generic
+from typing import Any, Dict, List, Optional, Sequence, Set, Union, Generic
 
-import six
 import networkx as nx
-import typing  # noqa
-from six.moves import range
 
 
 logger = logging.getLogger(__name__)
@@ -36,10 +24,7 @@ class InfiniteLanguageError(RevexError):
 
 NodeType = typing.TypeVar('NodeType')
 
-if six.PY2:
-    String = Union[six.text_type, six.binary_type]
-else:
-    String = str
+String = str
 
 # All printable ASCII characters. http://www.catonmat.net/blog/my-favorite-regex/
 DEFAULT_ALPHABET = list(
@@ -47,11 +32,10 @@ DEFAULT_ALPHABET = list(
 
 
 class DFA(Generic[NodeType], nx.MultiDiGraph):
-    node = None  # type: Dict[NodeType, Dict[Any, Any]]
 
     def __init__(self, start, start_accepting, alphabet=DEFAULT_ALPHABET):
         # type: (NodeType, bool, Sequence[String]) -> None
-        super(DFA, self).__init__()
+        super().__init__()
         self.start = start  # type: NodeType
         self.add_state(start, start_accepting)
 
@@ -76,15 +60,15 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
 
     @property
     def is_empty(self):   # type: () -> bool
-        return len(self._acceptable_subgraph.node) == 0
+        return len(self._acceptable_subgraph.nodes) == 0
 
     @property
     def _acceptable_subgraph(self):  # type:  () -> nx.MultiDiGraph
         graph = self.as_multidigraph
         reachable_states = nx.descendants(graph, self.start) | {self.start}
-        graph = graph.subgraph(reachable_states)
+        graph = graph.subgraph(reachable_states).copy()
         reachable_accepting_states = reachable_states & {
-            node for node in graph.node if graph.node[node]['accepting']
+            node for node in graph.nodes if graph.nodes[node]['accepting']
         }
 
         # Add a "sink" node with an in-edge from every accepting state. This is
@@ -96,7 +80,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             graph.add_edge(state, sink)
 
         acceptable_sates = nx.ancestors(graph, sink)
-        return graph.subgraph(acceptable_sates)
+        return graph.subgraph(acceptable_sates).copy()
 
     @property
     def has_finite_language(self):  # type: () -> bool
@@ -131,7 +115,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         # one walk between these two states, corresponding to a string present in
         # the language.
         acceptable_subgraph = self._acceptable_subgraph
-        if len(acceptable_subgraph.node) == 0:
+        if len(acceptable_subgraph.nodes) == 0:
             # If this graph is _empty_, then the language is empty.
             raise EmptyLanguageError()
 
@@ -148,26 +132,10 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             # nx raises ``nx.NetworkXUnfeasible``.
             raise InfiniteLanguageError()
 
-        # To show that the longest path must originate at the start node,
-        # consider 3 cases for the position of s in a longest path P from u to v:
-        #
-        # (a) At the beginning. Done; this is what we were seeking to prove.
-        # (b) On the path, but not at the beginning. In this case, u is
-        #     reachable from s (by property (1) above), and s in reachable from
-        #     u (since s is on a path from u to v). This means the graph
-        #     contains a cycle, which contradicts that we've constructed a
-        #     topological sort on it.
-        # (c) Disjoint from s. Let P' be a path connecting s to u (which must
-        #     exist by property (1)). If this path contains a vertex u'!=u in P,
-        #     then P ∪ P' contains a cycle (from u to u' on P and from u' to u
-        #     on P'), which is a contradiction. But then P ∪ P' is a path, which
-        #     contains at least one more vertex than P (in particular, s), and
-        #     so is a longer path, which contradicts the maximality assumption.
-
         chars = []
         for state1, state2 in zip(longest_path, longest_path[1:]):
             edges = self.succ[state1][state2]
-            chars.append(next(six.itervalues(edges))['transition'])
+            chars.append(next(iter(edges.values()))['transition'])
         return type(self.alphabet[0])().join(chars)
 
     @property
@@ -183,7 +151,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         """
         graph = self.as_multidigraph
         accepting_states = {
-            node for node in graph.node if graph.node[node]['accepting']
+            node for node in graph.nodes if graph.nodes[node]['accepting']
         }
 
         # Add a "sink" node with an in-edge from every accepting state. This is
@@ -200,11 +168,9 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
     def add_state(self, state, accepting):  # type: (NodeType, bool) -> None
         self.add_node(
             state,
-            attr_dict={
-                'label': str(state),
-                'accepting': accepting,
-                'shape': 'doublecircle' if accepting else 'box',
-            },
+            label=str(state),
+            accepting=accepting,
+            shape='doublecircle' if accepting else 'box',
             color='green' if accepting else 'black',
         )
 
@@ -220,17 +186,15 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         self.delta[from_state][char] = to_state
         self.add_edge(
             from_state, to_state,
-            attr_dict={
-                'transition': char,
-                'label': ' %s ' % char,
-            }
+            transition=char,
+            label=' %s ' % char,
         )
 
     def match(self, string):  # type: (String) -> bool
         node = self.start
         for i in range(len(string)):
             node = self.delta[node][string[i:i + 1]]
-        return self.node[node]['accepting']
+        return self.nodes[node]['accepting']
 
     def _draw(self, full=False):  # pragma: no cover
         # type: (bool) -> None
@@ -245,8 +209,8 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             graph = self.live_subgraph
 
         invisible_start_node = object()
-        graph.add_node(invisible_start_node, attr_dict={'label': ''}, color='white')
-        graph.add_edge(invisible_start_node, self.start, attr_dict={'label': ' start'})
+        graph.add_node(invisible_start_node, label='', color='white')
+        graph.add_edge(invisible_start_node, self.start, label=' start')
 
         if 'ipykernel' in sys.modules:
             import IPython.display
@@ -257,7 +221,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
                 nx.drawing.nx_agraph.write_dot(graph, dotpath)
                 os.system(
                     'dot -Tpng {dotpath} -o {pngpath}'.format(**locals()))
-                with open(pngpath, 'rb') as f:  # type: ignore
+                with open(pngpath, 'rb') as f:
                     IPython.display.display(IPython.display.Image(data=f.read()))
             finally:
                 shutil.rmtree(directory)
@@ -298,7 +262,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
         """
         if set(self.alphabet) != set(other.alphabet):
             return None  # Two DFAs on different alphabets cannot be isomorphic.
-        elif len(self.node) != len(other.node):
+        elif len(self.nodes) != len(other.nodes):
             return None
         isomorphism = {self.start: other.start}
         to_explore = [(self.start, other.start)]
@@ -311,7 +275,7 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
                     isomorphism[self_next_node] = other_next_node
                 elif isomorphism[self_next_node] != other_next_node:
                     return None
-        assert len(isomorphism) == len(self.node)
+        assert len(isomorphism) == len(self.nodes)
         return isomorphism
 
 
@@ -328,7 +292,7 @@ def get_equivalent_states(dfa):
     the states.
     """
     states = list(dfa.nodes())
-    F = {state for state in states if dfa.node[state]['accepting']}
+    F = {state for state in states if dfa.nodes[state]['accepting']}
 
     # Two nodes p and q in the DFA are considered _equivalent_ iff for every
     # string S=c0c1c2...ck, starting off at p and q are always accepting or not
@@ -390,7 +354,7 @@ def minimize_dfa(dfa):  # type: (DFA[T]) -> DFA[frozenset[T]]
     }  # type: Dict[T, frozenset[T]]
 
     def is_accepting(new_state):  # type: (frozenset[T]) -> bool
-        return dfa.node[next(iter(new_state))]['accepting']
+        return dfa.nodes[next(iter(new_state))]['accepting']
 
     start = old_state_to_new_state[dfa.start]
     new_dfa = DFA(start, is_accepting(start), alphabet=dfa.alphabet)  # type: DFA[frozenset[T]]
@@ -416,20 +380,20 @@ def construct_integer_dfa(dfa):  # type: (DFA) -> DFA[int]
     This is more efficient for some algorithms, since arrays/lists can be used
     instead of hash tables.
     """
-    nodes = [dfa.start] + [node for node in dfa.node if node != dfa.start]
+    nodes = [dfa.start] + [node for node in dfa.nodes if node != dfa.start]
     node_to_index = {node: index for index, node in enumerate(nodes)}
     int_dfa = DFA(
         start=node_to_index[dfa.start],
-        start_accepting=dfa.node[dfa.start]['accepting'],
+        start_accepting=dfa.nodes[dfa.start]['accepting'],
         alphabet=dfa.alphabet,
     )
-    for node, attr in six.iteritems(dfa.node):
+    for node, attr in dfa.nodes.items():
         int_dfa.add_state(
             node_to_index[node],
             accepting=attr['accepting'],
         )
-    for from_node, trans in six.iteritems(dfa.delta):
-        for char, to_node in six.iteritems(trans):
+    for from_node, trans in dfa.delta.items():
+        for char, to_node in trans.items():
             int_dfa.add_transition(
                 node_to_index[from_node],
                 node_to_index[to_node],

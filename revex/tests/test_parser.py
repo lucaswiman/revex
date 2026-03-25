@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import re
 import string
 
@@ -9,11 +6,10 @@ import pytest
 from hypothesis import strategies as st
 
 from revex import compile
-from revex.derivative import REGEX, EPSILON
-from revex.regex_grammar import ESCAPABLE_CHARS, CHARSET_ESCAPABLE_CHARS
+from revex.derivative import EPSILON
 
 
-class RE(object):
+class RE:
     def __init__(self, pattern):
         self.base_re = re.compile(r'\A(%s)\Z' % pattern)
         self.re = compile(pattern)
@@ -193,16 +189,6 @@ def test_noncapturing_group():
     assert RE(r'f(?:oo)').match('foo')
 
 
-def test_lookaround_grammar():
-    assert REGEX.parse(r'foo(?=bar).*')
-    assert REGEX.parse(r'foo(?=bar)')
-    assert REGEX.parse(r'foo(?=(ab)*)')
-    assert REGEX.parse(r'foo(?!bar)')
-    assert REGEX.parse(r'.*(?<=bar)foo')
-    assert REGEX.parse(r'.*(?<!bar)foo')
-    RE(r'foo(?=bar).*')
-
-
 def test_lookaround_match():
     assert RE(r'foo(?=bar).*').match('foobarasdf')
     assert RE(r'foo(?=bar).*').match('foobar')
@@ -239,7 +225,7 @@ def test_escaped_characters():
     assert RE(r'[\x61][\u0062][\143]').match('abc')
     assert RE(r'[\x61-\143]+').match('abc')
     assert RE(r'\u00a3\u00A3').match('££')
-    assert RE(r'\U0001f62b').match(u'😫')
+    assert RE(r'\U0001f62b').match('😫')
     assert RE(r'\x00').match('\x00')
     assert RE(r'\u0000').match('\x00')
     assert RE(r'\000').match('\x00')
@@ -286,13 +272,12 @@ def test_url_validation_example():
     # URL validation regex from https://mathiasbynens.be/demo/url-regex
     # (@diegoperini)
     regex = r'(?:(?:https?|ftp)://)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:/[^\s]*)?'  # noqa
-    assert REGEX.parse(regex)
     assert RE(regex).match('http://foo.com/bar')
 
 
 @hypothesis.given(
-    st.text(min_size=1, max_size=1),
-    st.sampled_from(ESCAPABLE_CHARS),
+    st.text(min_size=1, max_size=1, alphabet=string.printable),
+    st.sampled_from(list('.$^\\*+()|{}?][')),
 )
 @hypothesis.settings()
 @hypothesis.example('\n', '\\')
@@ -302,16 +287,16 @@ def test_escaped_char(char, escapee):
 
 
 @hypothesis.given(
-    st.text(min_size=1, max_size=1),
-    st.sampled_from(CHARSET_ESCAPABLE_CHARS),
+    st.text(min_size=1, max_size=1, alphabet=string.printable),
+    st.sampled_from(list('.$^\\*+()|{}?][')),
 )
 def test_escaped_char_range_endpoint(char, escapee):
     RE(r'[\{escapee}-\{escapee}]'.format(escapee=escapee)).match(char)
 
 
 @hypothesis.given(
-    st.text(min_size=1, max_size=1),
-    st.sampled_from(CHARSET_ESCAPABLE_CHARS),
+    st.text(min_size=1, max_size=1, alphabet=string.printable),
+    st.sampled_from(list('.$^\\*+()|{}?][')),
 )
 def test_escaped_char_set(char, escapee):
     RE(r'[\{escapee}]'.format(escapee=escapee)).match(char)
@@ -337,5 +322,4 @@ def test_special_charset_chars_unicode():
 def test_hard_character_range_example(char):
     # Via https://twitter.com/mountain_ghosts/status/847130837644709888
     regex = r'[ -\/:-@\[-`\{-~]'
-    assert REGEX.parse(regex)
     RE(regex).match(char)  # Asserts the same as builtin re.compile.

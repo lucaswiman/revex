@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "revex"
+version = "0.1.0"
+description = "Reversible regular expressions: formal regex manipulation using Brzozowski derivatives"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "Lucas Wiman", email = "lucas.wiman@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: General",
+]
+dependencies = [
+    "networkx>=3.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "hypothesis>=6.0",
+    "mypy",
+    "ruff",
+]
+viz = [
+    "pygraphviz",
+]
+
+[project.urls]
+Homepage = "https://github.com/lucaswiman/revex"
+Repository = "https://github.com/lucaswiman/revex"
+
+[tool.setuptools.packages.find]
+include = ["revex*"]
+
+[tool.pytest.ini_options]
+xfail_strict = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E731", "E501"]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+strict_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
