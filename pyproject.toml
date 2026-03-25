@@ -37,6 +37,11 @@ dev = [
     "mypy",
     "ruff",
 ]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints",
+]
 viz = [
     "pygraphviz",
 ]
