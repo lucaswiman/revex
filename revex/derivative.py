@@ -333,7 +333,7 @@ class Intersection(RegularExpression):
             else:
                 return CharSet(acceptable_chars)
         elif negated_charset:
-            children.add(charset or negated_charset)
+            children.add(negated_charset)
 
         if len(children) == 1:
             return children.pop()
@@ -441,7 +441,7 @@ class Union(RegularExpression):
                 flattened_children.add(child)
         if flattened_children == {EMPTY}:
             return EMPTY
-        elif EMPTY in children:
+        elif EMPTY in flattened_children:
             flattened_children.remove(EMPTY)
 
         char_literals = {
@@ -551,7 +551,7 @@ class Star(RegularExpression):
 
     def __new__(cls, regex):
         if regex is EMPTY or regex is EPSILON:
-            return regex
+            return EPSILON
         instance = super().__new__(cls)
         instance.regex = regex
         return instance

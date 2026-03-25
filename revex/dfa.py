@@ -264,6 +264,8 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             return None  # Two DFAs on different alphabets cannot be isomorphic.
         elif len(self.nodes) != len(other.nodes):
             return None
+        if self.nodes[self.start]['accepting'] != other.nodes[other.start]['accepting']:
+            return None
         isomorphism = {self.start: other.start}
         to_explore = [(self.start, other.start)]
         while to_explore:
@@ -271,6 +273,8 @@ class DFA(Generic[NodeType], nx.MultiDiGraph):
             for char, self_next_node in self.delta[self_node].items():
                 other_next_node = other.delta[other_node][char]
                 if self_next_node not in isomorphism:
+                    if self.nodes[self_next_node]['accepting'] != other.nodes[other_next_node]['accepting']:
+                        return None
                     to_explore.append((self_next_node, other_next_node))
                     isomorphism[self_next_node] = other_next_node
                 elif isomorphism[self_next_node] != other_next_node:
@@ -324,10 +328,11 @@ def get_equivalent_states(dfa):
             for a in dfa.alphabet:
                 if (delta(p, a), delta(q, a)) not in equivalent:
                     equivalent.remove((p, q))
+                    equivalent.discard((q, p))
                     found_disproof = True
                     break
 
-    return equivalent | {(q, p) for p, q in equivalent}
+    return equivalent
 
 
 T = typing.TypeVar('T')
