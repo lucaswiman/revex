@@ -1,4 +1,5 @@
 *.pyc
+__pycache__/
 .cache
 .coverage
 .idea
@@ -6,3 +7,4 @@
 *.egg-info
 .hypothesis
 *.ipynb*
+docs/_build/

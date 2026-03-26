@@ -72,7 +72,7 @@ def test_equality_and_construction():
     assert (Star(a) + b).derivative('b') == EPSILON
     assert (Star(a) + b).derivative('a') == Star(a) + b
     assert (Star(a) + b).derivative('c') == EMPTY
-    assert Star(EMPTY) is EMPTY
+    assert Star(EMPTY) is EPSILON  # ∅* = {ε}
     assert Star(EPSILON) is EPSILON
 
     assert ~a & b == b

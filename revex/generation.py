@@ -1,17 +1,13 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division
-
 import itertools
 import random
 from bisect import bisect_left
 from itertools import count
+from typing import Tuple, Dict, List, Union
 
 import networkx as nx
 import numpy as np
-from six.moves import range
-from typing import Tuple, Dict, List, Union  # noqa
 
-from revex.dfa import DFA  # noqa
+from revex.dfa import DFA
 from revex.dfa import construct_integer_dfa
 from revex.dfa import EmptyLanguageError
 from revex.dfa import InfiniteLanguageError
@@ -30,7 +26,7 @@ class DiscreteRandomVariable(_Distribution):
         total = sum(weights, 0.0)
         if total == 0:
             raise InvalidDistributionError()
-        super(DiscreteRandomVariable, self).__init__(
+        super().__init__(
             count / total for count in weights)
         for i in range(1, len(self)):
             # Build the right endpoints to sample from.
@@ -52,7 +48,7 @@ class LeastFrequentRoundRobin(_Distribution):
     with zero weighting.
     """
     def __init__(self, counts):  # type: (List[Union[float, int]]) -> None
-        super(LeastFrequentRoundRobin, self).__init__(
+        super().__init__(
             i for i, count in enumerate(counts) if counts[i] > 0)
         self.sort(key=counts.__getitem__)  # Sort indices from least to most frequent.
         self.chooser = itertools.cycle(self)
@@ -61,7 +57,7 @@ class LeastFrequentRoundRobin(_Distribution):
         return next(self.chooser)
 
 
-class PathWeights(object):
+class PathWeights:
 
     def __init__(self, dfa):  # type: (DFA) -> None
         """
@@ -83,10 +79,10 @@ class PathWeights(object):
         self.sink = len(dfa.nodes())
 
         for state in dfa.nodes():
-            if dfa.node[state]['accepting']:
+            if dfa.nodes[state]['accepting']:
                 self.graph.add_edge(state, self.sink)
 
-        self.matrix = nx.to_numpy_matrix(self.graph, nodelist=self.graph.nodes())
+        self.matrix = nx.to_numpy_array(self.graph, nodelist=list(self.graph.nodes()))
         vect = np.zeros(self.matrix.shape[0])
         vect[-1] = 1.0  # Grabs the neighborhood of the sink node (last column).
         self.vects = [self.normalize_vector(self.matrix.dot(vect)).T]
@@ -104,21 +100,21 @@ class PathWeights(object):
         return self.vects[path_length].item(node)
 
 
-class BaseGenerator(object):
+class BaseGenerator:
     def __init__(self, dfa):  # type: (DFA) -> None
         if dfa.find_invalid_nodes():  # pragma: no cover
             raise ValueError('Must use a valid DFA.')
         self.dfa = construct_integer_dfa(dfa)
         self.alphabet = list(self.dfa.alphabet)
 
-        self.nodes = range(0, len(self.dfa.node))
+        self.nodes = range(0, len(self.dfa.nodes))
 
         # Denoted by l_{p,n} in section 2 of the Bernardi & Giménez paper,
         # path_weights[state, n] is the proportion of paths of length n from
         # state to _some_ final/accepting state. In that paper, the _counts_ are
         # stored as floating point numbers for efficiency, but this leads to
         # overflow when generating very long strings. In our implementation, the
-        # weights are normalized at each lengthy so they're always between 0 and 1.
+        # weights are normalized at each length so they're always between 0 and 1.
         self.path_weights = PathWeights(self.dfa)
         self.node_length_to_character_dist = {}  # type: Dict[Tuple[int, int], _Distribution]
 
@@ -147,7 +143,7 @@ class BaseGenerator(object):
         """
         state = self.dfa.start
         chars = []
-        if length == 0 and not self.dfa.node[state]['accepting']:
+        if length == 0 and not self.dfa.nodes[state]['accepting']:
             return None
         elif self.path_weights[state, length] == 0:
             return None  # No paths of the given length.
@@ -204,7 +200,7 @@ class DeterministicRegularLanguageGenerator(BaseGenerator):
 
         def strings(state, stack, remaining_length):
             if remaining_length == 0:
-                if self.dfa.node[state]['accepting']:
+                if self.dfa.nodes[state]['accepting']:
                     yield ''
                 return
 
@@ -215,10 +211,8 @@ class DeterministicRegularLanguageGenerator(BaseGenerator):
                     yield empty_string.join(stack)
                 else:
                     next_state = self.dfa.delta[state][char]
-                    for s in strings(next_state, stack, remaining_length - 1):
-                        yield s
+                    yield from strings(next_state, stack, remaining_length - 1)
                 stack.pop()
 
         for length in self.valid_lengths_iter():
-            for s in strings(self.dfa.start, [], length):
-                yield s
+            yield from strings(self.dfa.start, [], length)
